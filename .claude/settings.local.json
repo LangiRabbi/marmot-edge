@@ -3,7 +3,26 @@
     "allow": [
       "Bash(git init:*)",
       "Bash(gh repo create:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(git remote add:*)",
+      "Read(//c/Users/uzytkownik/Downloads/**)",
+      "Bash(start https://github.com/LangiRabbi/marmot-edge)",
+      "Bash(mkdir:*)",
+      "Bash(touch:*)",
+      "Bash(alembic init:*)",
+      "Bash(python:*)",
+      "Bash(gh pr list:*)",
+      "WebSearch",
+      "Bash(gh repo view:*)",
+      "Bash(gh auth:*)",
+      "Bash(gh pr:*)",
+      "Bash(git checkout:*)",
+      "Bash(git pull:*)",
+      "Bash(alembic revision:*)",
+      "Bash(alembic upgrade:*)",
+      "Bash(curl:*)"
     ],
     "deny": [],
     "ask": []
