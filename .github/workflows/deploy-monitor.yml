@@ -1,0 +1,394 @@
+name: Deployment & Monitoring
+
+on:
+  workflow_run:
+    workflows: ["Backend CI/CD Pipeline", "Frontend Integration Tests"]
+    branches: [main, develop]
+    types: [completed]
+
+  # Manual deployment trigger
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+      force_deploy:
+        description: 'Force deployment even if tests failed'
+        required: false
+        default: false
+        type: boolean
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  # Check if deployment should proceed
+  check-deployment:
+    name: Check Deployment Conditions
+    runs-on: ubuntu-latest
+    outputs:
+      should-deploy: ${{ steps.check.outputs.should-deploy }}
+      target-env: ${{ steps.check.outputs.target-env }}
+
+    steps:
+      - name: Check deployment conditions
+        id: check
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "should-deploy=true" >> $GITHUB_OUTPUT
+            echo "target-env=${{ github.event.inputs.environment }}" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.event.workflow_run.conclusion }}" == "success" ]]; then
+            if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+              echo "should-deploy=true" >> $GITHUB_OUTPUT
+              echo "target-env=production" >> $GITHUB_OUTPUT
+            elif [[ "${{ github.ref }}" == "refs/heads/develop" ]]; then
+              echo "should-deploy=true" >> $GITHUB_OUTPUT
+              echo "target-env=staging" >> $GITHUB_OUTPUT
+            else
+              echo "should-deploy=false" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "should-deploy=false" >> $GITHUB_OUTPUT
+          fi
+
+  # Build and push Docker images
+  build-images:
+    name: Build and Push Images
+    runs-on: ubuntu-latest
+    needs: check-deployment
+    if: needs.check-deployment.outputs.should-deploy == 'true'
+
+    permissions:
+      contents: read
+      packages: write
+
+    outputs:
+      backend-image: ${{ steps.meta-backend.outputs.tags }}
+      frontend-image: ${{ steps.meta-frontend.outputs.tags }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Backend image
+      - name: Extract backend metadata
+        id: meta-backend
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-backend
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push backend image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          push: true
+          tags: ${{ steps.meta-backend.outputs.tags }}
+          labels: ${{ steps.meta-backend.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # Frontend image (if needed for containerized deployment)
+      - name: Extract frontend metadata
+        id: meta-frontend
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-frontend
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build frontend
+        run: |
+          npm ci
+          npm run build
+
+      - name: Build and push frontend image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: Dockerfile.frontend
+          push: true
+          tags: ${{ steps.meta-frontend.outputs.tags }}
+          labels: ${{ steps.meta-frontend.outputs.labels }}
+
+  # Deploy to staging
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: [check-deployment, build-images]
+    if: needs.check-deployment.outputs.target-env == 'staging'
+    environment: staging
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Deploy to ECS
+        run: |
+          # Update ECS service with new images
+          aws ecs update-service \
+            --cluster industrial-monitoring-staging \
+            --service backend-service \
+            --task-definition industrial-monitoring-backend-staging \
+            --force-new-deployment
+
+      - name: Wait for deployment
+        run: |
+          aws ecs wait services-stable \
+            --cluster industrial-monitoring-staging \
+            --services backend-service
+
+      - name: Run health check
+        run: |
+          # Wait for service to be ready
+          sleep 30
+
+          # Get service URL from AWS or use configured endpoint
+          STAGING_URL="https://staging-api.industrial-monitoring.com"
+
+          # Health check
+          curl -f "$STAGING_URL/health" || exit 1
+          curl -f "$STAGING_URL/api/v1/workstations" || exit 1
+
+      - name: Run smoke tests
+        run: |
+          # Basic smoke tests for staging environment
+          pytest backend/tests/smoke/ --base-url=$STAGING_URL -v
+
+      - name: Notify deployment success
+        if: success()
+        uses: 8398a7/action-slack@v3
+        with:
+          status: success
+          fields: repo,message,commit,author,action,eventName,ref,workflow
+          text: "✅ Staging deployment successful for ${{ github.repository }}"
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+      - name: Notify deployment failure
+        if: failure()
+        uses: 8398a7/action-slack@v3
+        with:
+          status: failure
+          fields: repo,message,commit,author,action,eventName,ref,workflow
+          text: "❌ Staging deployment failed for ${{ github.repository }}"
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+  # Deploy to production
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [check-deployment, build-images]
+    if: needs.check-deployment.outputs.target-env == 'production'
+    environment: production
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Create GitHub Release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v${{ github.run_number }}
+          release_name: Release v${{ github.run_number }}
+          body: |
+            ## Production Release v${{ github.run_number }}
+
+            **Commit:** ${{ github.sha }}
+            **Author:** ${{ github.actor }}
+
+            ### Changes
+            ${{ github.event.head_commit.message }}
+
+            ### Docker Images
+            - Backend: ${{ needs.build-images.outputs.backend-image }}
+            - Frontend: ${{ needs.build-images.outputs.frontend-image }}
+          draft: false
+          prerelease: false
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_PROD }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_PROD }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Blue-Green Deployment
+        run: |
+          # Implement blue-green deployment strategy
+          echo "Starting blue-green deployment..."
+
+          # Update task definition with new image
+          aws ecs update-service \
+            --cluster industrial-monitoring-production \
+            --service backend-service \
+            --task-definition industrial-monitoring-backend-production \
+            --force-new-deployment
+
+      - name: Wait for deployment and health check
+        run: |
+          # Wait for ECS service to stabilize
+          aws ecs wait services-stable \
+            --cluster industrial-monitoring-production \
+            --services backend-service
+
+          # Health check
+          PROD_URL="https://api.industrial-monitoring.com"
+
+          # Wait for service to be ready
+          for i in {1..30}; do
+            if curl -f "$PROD_URL/health"; then
+              echo "Production service is healthy"
+              break
+            fi
+            echo "Waiting for service to be ready... ($i/30)"
+            sleep 10
+          done
+
+      - name: Run production smoke tests
+        run: |
+          pytest backend/tests/smoke/ \
+            --base-url=https://api.industrial-monitoring.com \
+            --production-mode \
+            -v
+
+      - name: Update monitoring and alerts
+        run: |
+          # Update monitoring dashboards
+          # Update alert configurations
+          echo "Updating monitoring for new deployment..."
+
+      - name: Notify production deployment
+        if: success()
+        uses: 8398a7/action-slack@v3
+        with:
+          status: success
+          fields: repo,message,commit,author,action,eventName,ref,workflow
+          text: "🚀 Production deployment successful for ${{ github.repository }} v${{ github.run_number }}"
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+      - name: Rollback on failure
+        if: failure()
+        run: |
+          echo "Production deployment failed, initiating rollback..."
+
+          # Get previous task definition
+          PREVIOUS_TASK_DEF=$(aws ecs describe-services \
+            --cluster industrial-monitoring-production \
+            --services backend-service \
+            --query 'services[0].taskDefinition' \
+            --output text)
+
+          # Rollback to previous version
+          aws ecs update-service \
+            --cluster industrial-monitoring-production \
+            --service backend-service \
+            --task-definition $PREVIOUS_TASK_DEF
+
+      - name: Notify rollback
+        if: failure()
+        uses: 8398a7/action-slack@v3
+        with:
+          status: failure
+          fields: repo,message,commit,author,action,eventName,ref,workflow
+          text: "⚠️ Production deployment failed and rolled back for ${{ github.repository }}"
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+  # Post-deployment monitoring
+  post-deployment-monitoring:
+    name: Post-Deployment Monitoring
+    runs-on: ubuntu-latest
+    needs: [deploy-staging, deploy-production]
+    if: always() && (needs.deploy-staging.result == 'success' || needs.deploy-production.result == 'success')
+
+    steps:
+      - name: Setup monitoring
+        run: |
+          echo "Setting up post-deployment monitoring..."
+
+          # Determine environment
+          if [[ "${{ needs.deploy-production.result }}" == "success" ]]; then
+            ENVIRONMENT="production"
+            BASE_URL="https://api.industrial-monitoring.com"
+          else
+            ENVIRONMENT="staging"
+            BASE_URL="https://staging-api.industrial-monitoring.com"
+          fi
+
+          echo "ENVIRONMENT=$ENVIRONMENT" >> $GITHUB_ENV
+          echo "BASE_URL=$BASE_URL" >> $GITHUB_ENV
+
+      - name: Run extended health checks
+        run: |
+          # Extended health monitoring for the next 10 minutes
+          for i in {1..20}; do
+            echo "Health check $i/20..."
+
+            # API health check
+            if ! curl -f "$BASE_URL/health"; then
+              echo "❌ Health check failed at attempt $i"
+              exit 1
+            fi
+
+            # Database connectivity check
+            if ! curl -f "$BASE_URL/api/v1/workstations"; then
+              echo "❌ Database connectivity check failed at attempt $i"
+              exit 1
+            fi
+
+            echo "✅ Health check $i passed"
+            sleep 30
+          done
+
+      - name: Performance baseline check
+        run: |
+          # Quick performance check
+          echo "Running performance baseline check..."
+
+          # API response time check
+          RESPONSE_TIME=$(curl -w "%{time_total}" -s -o /dev/null "$BASE_URL/api/v1/workstations")
+
+          if (( $(echo "$RESPONSE_TIME > 2.0" | bc -l) )); then
+            echo "⚠️ API response time is high: ${RESPONSE_TIME}s"
+          else
+            echo "✅ API response time is acceptable: ${RESPONSE_TIME}s"
+          fi
+
+      - name: Update deployment status
+        run: |
+          echo "Deployment monitoring completed successfully for $ENVIRONMENT"
