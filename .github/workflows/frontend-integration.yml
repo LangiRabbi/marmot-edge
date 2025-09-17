@@ -1,0 +1,367 @@
+name: Frontend Integration Tests
+
+on:
+  push:
+    branches: [ main, develop, 'feat/*' ]
+  pull_request:
+    branches: [ main, develop ]
+
+env:
+  NODE_VERSION: '18'
+  PYTHON_VERSION: '3.11'
+
+jobs:
+  # Frontend Build and Test
+  frontend-test:
+    name: Frontend Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Run frontend linting
+        run: npm run lint
+
+      - name: Run frontend tests
+        run: npm run test -- --coverage
+
+      - name: Build frontend
+        run: npm run build
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: frontend-build
+          path: dist/
+
+  # End-to-End Integration Tests
+  e2e-integration:
+    name: E2E Integration Tests
+    runs-on: ubuntu-latest
+    needs: [frontend-test]
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: testpassword
+          POSTGRES_USER: testuser
+          POSTGRES_DB: test_industrial_monitoring
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgl1-mesa-glx libglib2.0-0
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Start backend server
+        working-directory: backend
+        env:
+          DATABASE_URL: postgresql://testuser:testpassword@localhost:5432/test_industrial_monitoring
+          REDIS_URL: redis://localhost:6379
+          SECRET_KEY: test-secret-key
+          ALLOWED_ORIGINS: http://localhost:5173,http://localhost:3000
+        run: |
+          python app/main.py &
+          BACKEND_PID=$!
+          echo "BACKEND_PID=$BACKEND_PID" >> $GITHUB_ENV
+
+          # Wait for backend to start
+          for i in {1..30}; do
+            if curl -f http://localhost:8000/health; then
+              echo "Backend is ready"
+              break
+            fi
+            echo "Waiting for backend to start... ($i/30)"
+            sleep 2
+          done
+
+      - name: Start frontend dev server
+        env:
+          VITE_API_BASE_URL: http://localhost:8000/api/v1
+          VITE_WS_BASE_URL: ws://localhost:8000/ws
+        run: |
+          npm run dev &
+          FRONTEND_PID=$!
+          echo "FRONTEND_PID=$FRONTEND_PID" >> $GITHUB_ENV
+
+          # Wait for frontend to start
+          for i in {1..30}; do
+            if curl -f http://localhost:5173; then
+              echo "Frontend is ready"
+              break
+            fi
+            echo "Waiting for frontend to start... ($i/30)"
+            sleep 2
+          done
+
+      - name: Install Playwright
+        run: npx playwright install --with-deps
+
+      - name: Run Playwright E2E tests
+        env:
+          PLAYWRIGHT_BASE_URL: http://localhost:5173
+          API_BASE_URL: http://localhost:8000/api/v1
+        run: npx playwright test
+
+      - name: Upload Playwright report
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: playwright-report
+          path: playwright-report/
+
+      - name: Stop servers
+        if: always()
+        run: |
+          kill $BACKEND_PID || true
+          kill $FRONTEND_PID || true
+
+  # API Integration Tests
+  api-integration:
+    name: API Integration Tests
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: testpassword
+          POSTGRES_USER: testuser
+          POSTGRES_DB: test_industrial_monitoring
+        ports:
+          - 5432:5432
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        working-directory: backend
+        run: |
+          pip install -r requirements.txt
+          pip install pytest httpx
+
+      - name: Start backend server
+        working-directory: backend
+        env:
+          DATABASE_URL: postgresql://testuser:testpassword@localhost:5432/test_industrial_monitoring
+          REDIS_URL: redis://localhost:6379
+        run: |
+          python app/main.py &
+          BACKEND_PID=$!
+          echo "BACKEND_PID=$BACKEND_PID" >> $GITHUB_ENV
+          sleep 5
+
+      - name: Run API integration tests
+        working-directory: backend
+        run: |
+          pytest tests/integration/ -v --tb=short
+
+      - name: Test API endpoints with curl
+        run: |
+          # Test health endpoint
+          curl -f http://localhost:8000/health
+
+          # Test workstations endpoint
+          curl -f http://localhost:8000/api/v1/workstations
+
+          # Test CORS headers
+          curl -H "Origin: http://localhost:3000" \
+               -H "Access-Control-Request-Method: POST" \
+               -X OPTIONS \
+               http://localhost:8000/api/v1/workstations
+
+      - name: Stop backend server
+        if: always()
+        run: kill $BACKEND_PID || true
+
+  # WebSocket Integration Tests
+  websocket-integration:
+    name: WebSocket Integration Tests
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: testpassword
+          POSTGRES_USER: testuser
+          POSTGRES_DB: test_industrial_monitoring
+        ports:
+          - 5432:5432
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: |
+          pip install -r requirements.txt
+          pip install websockets pytest-asyncio
+
+      - name: Install WebSocket testing tools
+        run: |
+          npm install -g wscat
+
+      - name: Start backend server
+        working-directory: backend
+        env:
+          DATABASE_URL: postgresql://testuser:testpassword@localhost:5432/test_industrial_monitoring
+          REDIS_URL: redis://localhost:6379
+        run: |
+          python app/main.py &
+          BACKEND_PID=$!
+          echo "BACKEND_PID=$BACKEND_PID" >> $GITHUB_ENV
+          sleep 5
+
+      - name: Test WebSocket connections
+        timeout-minutes: 2
+        run: |
+          # Test workstation WebSocket
+          echo "Testing workstation WebSocket..."
+          timeout 10 wscat -c ws://localhost:8000/ws/workstation/1 -x '{"type": "ping"}' || true
+
+          # Test global WebSocket
+          echo "Testing global WebSocket..."
+          timeout 10 wscat -c ws://localhost:8000/ws/global -x '{"type": "ping"}' || true
+
+      - name: Run WebSocket integration tests
+        working-directory: backend
+        run: |
+          pytest tests/websocket/ -v --tb=short
+
+      - name: Stop backend server
+        if: always()
+        run: kill $BACKEND_PID || true
+
+  # Performance and Load Testing
+  load-test:
+    name: Load Testing
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: testpassword
+          POSTGRES_USER: testuser
+          POSTGRES_DB: test_industrial_monitoring
+        ports:
+          - 5432:5432
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        working-directory: backend
+        run: |
+          pip install -r requirements.txt
+
+      - name: Start backend server
+        working-directory: backend
+        env:
+          DATABASE_URL: postgresql://testuser:testpassword@localhost:5432/test_industrial_monitoring
+        run: |
+          python app/main.py &
+          BACKEND_PID=$!
+          echo "BACKEND_PID=$BACKEND_PID" >> $GITHUB_ENV
+          sleep 5
+
+      - name: Install Apache Bench
+        run: sudo apt-get install -y apache2-utils
+
+      - name: Run load tests
+        run: |
+          echo "Testing API load..."
+          ab -n 100 -c 10 http://localhost:8000/api/v1/workstations
+
+          echo "Testing health endpoint load..."
+          ab -n 500 -c 25 http://localhost:8000/health
+
+      - name: WebSocket load test
+        run: |
+          # Simple WebSocket connection test
+          for i in {1..5}; do
+            timeout 5 wscat -c ws://localhost:8000/ws/workstation/1 &
+          done
+          wait
+          echo "WebSocket load test completed"
+
+      - name: Stop backend server
+        if: always()
+        run: kill $BACKEND_PID || true

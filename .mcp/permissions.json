@@ -1,0 +1,101 @@
+{
+  "mcp_tools": {
+    "required": [
+      {
+        "name": "github",
+        "permissions": [
+          "repository:read",
+          "repository:write",
+          "issues:read",
+          "issues:write",
+          "pull_requests:read",
+          "pull_requests:write",
+          "contents:read",
+          "contents:write",
+          "actions:read"
+        ],
+        "usage": "Code management, commits, issues, pull requests",
+        "critical": true
+      },
+      {
+        "name": "Context7",
+        "permissions": [
+          "library_docs:read"
+        ],
+        "usage": "Access documentation for YOLOv11, FastAPI, SQLAlchemy libraries",
+        "critical": true
+      },
+      {
+        "name": "jam",
+        "permissions": [
+          "debug_session:read",
+          "recordings:read",
+          "console_logs:read",
+          "network_requests:read",
+          "errors:read"
+        ],
+        "usage": "AI-powered debugging with session recordings, console logs, network monitoring",
+        "critical": true,
+        "setup_command": "claude mcp add --transport http jam https://mcp.jam.dev/mcp"
+      }
+    ],
+    "optional": [
+      {
+        "name": "web_search",
+        "permissions": [
+          "search:read"
+        ],
+        "usage": "Research technical issues and solutions",
+        "critical": false
+      }
+    ]
+  },
+  "project_specific_permissions": {
+    "github_repositories": {
+      "industrial_monitoring_system": {
+        "branches": ["main", "develop", "feat/*"],
+        "actions": [
+          "create_branch",
+          "commit",
+          "create_pull_request",
+          "merge",
+          "create_issue",
+          "comment_on_issue"
+        ]
+      }
+    },
+    "context7_libraries": [
+      "ultralytics/yolov11",
+      "fastapi/fastapi",
+      "sqlalchemy/sqlalchemy",
+      "opencv/opencv-python",
+      "websockets/websockets"
+    ],
+    "jam_integration": {
+      "debug_capabilities": [
+        "Session recordings",
+        "Console log monitoring",
+        "Network request tracking",
+        "Error capture and analysis",
+        "AI-powered debugging suggestions"
+      ],
+      "best_use_cases": [
+        "Video processing pipeline debugging",
+        "WebSocket connection issues",
+        "API integration testing",
+        "Real-time performance monitoring",
+        "Complex multi-component debugging"
+      ],
+      "setup_notes": "Record sessions during testing phases for AI-assisted debugging"
+    }
+  },
+  "development_workflow": {
+    "commit_pattern": "feat|fix|docs|test|refactor: description",
+    "branch_naming": "feat/checkpoint-{number}-{description}",
+    "required_checks": [
+      "tests_pass",
+      "debug_checklist_completed",
+      "manual_testing_done"
+    ]
+  }
+}
