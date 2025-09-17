@@ -21,6 +21,7 @@ import {
 import { WorkstationDetailsModal } from "./WorkstationDetailsModal";
 import { EditWorkstationModal } from "./EditWorkstationModal";
 import { useToast } from "@/hooks/use-toast";
+import { getConfig } from "@/config/environment";
 
 interface WorkstationCardProps {
   id: string;
@@ -44,6 +45,7 @@ export function WorkstationCard({
   onRemove
 }: WorkstationCardProps) {
   const { toast } = useToast();
+  const config = getConfig();
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -78,10 +80,19 @@ export function WorkstationCard({
   };
 
   const handleConfigure = () => {
-    toast({
-      title: "Configuration",
-      description: "Configuration coming soon",
-    });
+    if (config.features.enableConfiguration) {
+      // TODO: Implement configuration logic
+      toast({
+        title: "Configuration",
+        description: "Opening configuration panel...",
+      });
+    } else {
+      toast({
+        title: "Feature Not Available",
+        description: "Configuration feature is currently disabled",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleRemove = () => {
@@ -106,7 +117,11 @@ export function WorkstationCard({
   };
 
   return (
-    <div className="glass-card p-6 smooth-transition cursor-pointer hover:scale-[1.02]" onClick={handleViewDetails}>
+    <div 
+      className="glass-card p-6 smooth-transition cursor-pointer hover:scale-[1.02]" 
+      onClick={handleViewDetails}
+      role="article"
+      aria-label={`Workstation ${name} - Status: ${getStatusText()}`}>
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-lg font-semibold text-foreground">{name}</h3>
@@ -117,6 +132,7 @@ export function WorkstationCard({
               size="icon" 
               className="h-8 w-8 hover:bg-muted" 
               onClick={(e) => e.stopPropagation()}
+              aria-label={`More options for ${name}`}
             >
               <MoreVertical className="h-4 w-4" />
             </Button>
@@ -130,10 +146,12 @@ export function WorkstationCard({
               <Edit className="mr-2 h-4 w-4" />
               Edit Name
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleConfigure(); }} className="hover:bg-muted cursor-pointer">
-              <Settings className="mr-2 h-4 w-4" />
-              Configure
-            </DropdownMenuItem>
+            {config.features.enableConfiguration && (
+              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleConfigure(); }} className="hover:bg-muted cursor-pointer">
+                <Settings className="mr-2 h-4 w-4" />
+                Configure
+              </DropdownMenuItem>
+            )}
             <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleRemove(); }} className="hover:bg-muted text-destructive cursor-pointer">
               <Trash2 className="mr-2 h-4 w-4" />
               Remove

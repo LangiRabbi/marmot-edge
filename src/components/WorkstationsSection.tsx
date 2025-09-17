@@ -1,65 +1,25 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { WorkstationCard } from "./WorkstationCard";
 import { AddWorkstationCard } from "./AddWorkstationCard";
 import { AddWorkstationModal } from "./AddWorkstationModal";
 import { useToast } from "@/hooks/use-toast";
+import { getConfig } from "@/config/environment";
 
-const initialWorkstations = [
-  {
-    id: "1",
-    name: "Assembly Line 1",
-    status: "online" as const,
-    peopleCount: 2,
-    efficiency: 86,
-    lastActivity: "2 min ago",
-    ipAddress: "192.168.1.101"
-  },
-  {
-    id: "2",
-    name: "QC Station 3",
-    status: "alert" as const,
-    peopleCount: 0,
-    efficiency: 45,
-    lastActivity: "35 min ago",
-    ipAddress: "192.168.1.102"
-  },
-  {
-    id: "3",
-    name: "Packaging Unit A",
-    status: "online" as const,
-    peopleCount: 3,
-    efficiency: 94,
-    lastActivity: "1 min ago",
-    ipAddress: "192.168.1.103"
-  },
-  {
-    id: "4",
-    name: "Welding Station 2",
-    status: "offline" as const,
-    peopleCount: 0,
-    efficiency: 0,
-    lastActivity: "47 min ago",
-    ipAddress: "192.168.1.104"
-  },
-  {
-    id: "5",
-    name: "Paint Booth 1",
-    status: "online" as const,
-    peopleCount: 2,
-    efficiency: 90,
-    lastActivity: "3 min ago",
-    ipAddress: "192.168.1.105"
-  },
-  {
-    id: "6",
-    name: "Final Inspection",
-    status: "alert" as const,
-    peopleCount: 2,
-    efficiency: 68,
-    lastActivity: "18 min ago",
-    ipAddress: "192.168.1.106"
-  }
-];
+// Get initial workstations from config
+const getInitialWorkstations = () => {
+  const config = getConfig();
+  const statusOptions: Array<"online" | "offline" | "alert"> = ["online", "offline", "alert"];
+  
+  return config.workstations.defaultIPs.map((ws) => ({
+    id: ws.id,
+    name: ws.name,
+    status: statusOptions[Math.floor(Math.random() * statusOptions.length)],
+    peopleCount: Math.floor(Math.random() * 5),
+    efficiency: ws.name.includes("Welding") ? 0 : Math.floor(Math.random() * 40) + 60,
+    lastActivity: `${Math.floor(Math.random() * 60)} min ago`,
+    ipAddress: ws.ip
+  }));
+};
 
 interface Workstation {
   id: string;
@@ -72,6 +32,8 @@ interface Workstation {
 }
 
 export function WorkstationsSection() {
+  // Use memoized initial state to avoid recreating on every render
+  const initialWorkstations = useMemo(() => getInitialWorkstations(), []);
   const [workstations, setWorkstations] = useState<Workstation[]>(initialWorkstations);
   const [showAddModal, setShowAddModal] = useState(false);
   const { toast } = useToast();
@@ -82,7 +44,7 @@ export function WorkstationsSection() {
       name,
       status: "online",
       peopleCount: 0,
-      efficiency: Math.floor(Math.random() * 40) + 60, // Random efficiency between 60-99%
+      efficiency: 75, // Fixed initial efficiency to avoid hydration mismatch
       lastActivity: "Just added",
       ipAddress
     };

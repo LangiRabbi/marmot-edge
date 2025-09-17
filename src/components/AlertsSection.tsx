@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { Clock, X, Search } from "lucide-react";
+import { Clock, X, Search, Wrench, HardHat } from "lucide-react";
 
 const alertStats = [
   { label: "Active Alerts", value: "3", color: "text-destructive" },
@@ -66,7 +66,7 @@ export function AlertsSection() {
       {/* Technical Alerts */}
       <div className="glass-card p-6">
         <div className="flex items-center space-x-2 mb-4">
-          <span className="text-lg">🔧</span>
+          <Wrench className="h-5 w-5 text-muted-foreground" />
           <h2 className="text-lg font-semibold text-foreground">Technical Alerts</h2>
         </div>
         
@@ -91,6 +91,7 @@ export function AlertsSection() {
                     size="sm"
                     variant={index === 0 ? "outline" : "default"}
                     className={index === 0 ? "border-border hover:bg-muted" : "bg-primary text-primary-foreground hover:bg-primary/90"}
+                    aria-label={`${action} for ${alert.title}`}
                   >
                     {action}
                   </Button>
@@ -104,7 +105,7 @@ export function AlertsSection() {
       {/* Operational Alerts */}
       <div className="glass-card p-6">
         <div className="flex items-center space-x-2 mb-4">
-          <span className="text-lg">👷</span>
+          <HardHat className="h-5 w-5 text-muted-foreground" />
           <h2 className="text-lg font-semibold text-foreground">Operational Alerts</h2>
         </div>
         
@@ -135,6 +136,7 @@ export function AlertsSection() {
                           ? "border-border hover:bg-muted" 
                           : "bg-primary text-primary-foreground hover:bg-primary/90"
                     }
+                    aria-label={`${action} for ${alert.title}`}
                   >
                     {action}
                   </Button>
