@@ -4,16 +4,19 @@ from contextlib import asynccontextmanager
 import os
 from dotenv import load_dotenv
 
+# Import API routers
+from app.api.v1 import workstations, zones, seed
+
 # Load environment variables
 load_dotenv()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
-    print("🚀 Starting Marmot Industrial Monitoring System...")
+    print("Starting Marmot Industrial Monitoring System...")
     yield
     # Shutdown
-    print("🛑 Shutting down Marmot Industrial Monitoring System...")
+    print("Shutting down Marmot Industrial Monitoring System...")
 
 # Create FastAPI app
 app = FastAPI(
@@ -26,10 +29,31 @@ app = FastAPI(
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[os.getenv("FRONTEND_URL", "http://localhost:3000")],
+    allow_origins=[
+        os.getenv("FRONTEND_URL", "http://localhost:8080"),
+        "http://localhost:3000",  # Backup for development
+        "http://localhost:8080"   # Current frontend port
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+)
+
+# Include API routers
+app.include_router(
+    workstations.router,
+    prefix="/api/v1/workstations",
+    tags=["workstations"]
+)
+app.include_router(
+    zones.router,
+    prefix="/api/v1/zones",
+    tags=["zones"]
+)
+app.include_router(
+    seed.router,
+    prefix="/api/v1/seed",
+    tags=["seed"]
 )
 
 @app.get("/")
