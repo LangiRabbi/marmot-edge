@@ -39,6 +39,40 @@
 **Date Completed**: 2025-09-17
 **Notes**: All components created successfully. FastAPI app and models import without errors. Ready for next checkpoint.
 
+### ⚠️ CI/CD Issues for Investigation (PR #2)
+**Status**: 🔥 Failed CI checks requiring investigation
+**Date Identified**: 2025-09-17
+
+#### Failed Workflows:
+1. **Backend CI/CD Pipeline** - Multiple job failures:
+   - Code Quality: Failed at dependency installation
+   - Security Scan: Failed at job setup
+   - Run Tests: Failed at system dependencies installation
+   - Performance Tests, Docker Build, Deploy: Skipped due to upstream failures
+
+2. **Frontend Integration Tests** - Multiple job failures:
+   - Frontend Tests: Failed at job setup
+   - WebSocket Integration Tests: Failed at backend dependency installation
+   - API Integration Tests: Failed at dependency installation
+   - Load Testing, E2E Tests: Skipped due to upstream failures
+
+#### Root Causes to Investigate:
+- GitHub Actions runner environment compatibility issues
+- Missing system dependencies in CI environment
+- Potential Python version mismatch (local vs CI)
+- Node.js/npm version requirements for frontend tests
+- Docker permissions or configuration in CI environment
+
+#### Action Items:
+- [ ] Review GitHub Actions workflow configurations
+- [ ] Check Python and Node.js version specifications
+- [ ] Verify all system dependencies are properly installed in CI
+- [ ] Consider using matrix builds for different environments
+- [ ] Add more verbose logging to identify exact failure points
+
+**PR Link**: https://github.com/LangiRabbi/marmot-edge/pull/2
+**Note**: PR closed temporarily pending CI fixes
+
 ---
 
 ## CHECKPOINT 1: Basic API Endpoints
