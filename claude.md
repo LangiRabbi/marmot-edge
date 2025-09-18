@@ -1,13 +1,14 @@
 # Industrial Monitoring System - Claude Instructions
 
 ## Project Overview
-Developing an industrial monitoring system with YOLOv11 video analysis:
+Developing an industrial monitoring system with YOLOv11 BoT-SORT tracking:
 - **Frontend**: React + TypeScript + ShadCN/UI + Vite (COMPLETED)
-- **Backend**: FastAPI + YOLOv11 + PostgreSQL + WebSockets
-- **Functionality**: Real-time person detection in zones, efficiency calculation
-- **Video Sources**: RTSP, USB, IP cameras, file upload
+- **Backend**: FastAPI + YOLOv11 + BoT-SORT + PostgreSQL + WebSockets
+- **Functionality**: Multi-person tracking with persistent IDs, zone analysis, efficiency calculation
+- **Video Sources**: RTSP, USB, IP cameras, file upload (tested with 720x1280 video)
 - **Logic**: 1 person = Work, 0 = Idle, >1 = Other
 - **Efficiency**: work_time / (total_time - break_time)
+- **Performance**: 13.8+ FPS real-time tracking, up to 8 persons simultaneously
 
 ## Development Methodology
 **ONE COMPONENT AT A TIME** → debug → test → checkpoint → GitHub commit
@@ -47,11 +48,11 @@ Required MCP tools for this project:
 3. **jam** - AI-powered debugging with session recordings and console logs
 
 ## Current Status
-- [ ] Project initialization
-- [ ] Backend structure setup
-- [ ] API development
-- [ ] YOLOv11 integration
-- [ ] Video processing
+- [x] Project initialization (COMPLETED)
+- [x] Backend structure setup (COMPLETED) 
+- [x] API development (COMPLETED)
+- [x] YOLOv11 BoT-SORT integration (COMPLETED)
+- [ ] Video processing (NEXT - real-time streams)
 - [ ] WebSocket real-time updates
 - [ ] Analytics & efficiency
 - [ ] Alerts & notifications

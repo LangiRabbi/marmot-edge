@@ -1,17 +1,18 @@
 """
 Zone analysis service with tracking ID support
+Optimized for rectangular zones only (max 10 zones per stream)
 """
 import logging
 from typing import List, Dict, Any, Tuple, Optional
 from datetime import datetime, timedelta
-import numpy as np
-from shapely.geometry import Point, Polygon
 
 logger = logging.getLogger(__name__)
 
 
 class ZoneAnalyzer:
-    """Service for analyzing persons in zones with tracking support"""
+    """Service for analyzing persons in rectangular zones with tracking support (max 10 zones)"""
+
+    MAX_ZONES_PER_ANALYSIS = 10
 
     def __init__(self):
         """Initialize zone analyzer"""
@@ -25,11 +26,11 @@ class ZoneAnalyzer:
         zones: List[Dict[str, Any]]
     ) -> Dict[str, Any]:
         """
-        Analyze which tracked persons are in which zones
+        Analyze which tracked persons are in which rectangular zones (max 10)
 
         Args:
             trackings: List of tracking results with track_id, bbox, confidence
-            zones: List of zone definitions with id, coordinates, workstation_id
+            zones: List of zone definitions with id, coordinates, workstation_id (max 10)
 
         Returns:
             Dictionary with zone analysis results
@@ -38,17 +39,23 @@ class ZoneAnalyzer:
             analysis_timestamp = datetime.utcnow()
             zone_results = {}
 
-            # Initialize zone occupancy for this frame
-            current_occupancy = {zone['id']: set() for zone in zones}
+            # Limit zones to maximum allowed
+            limited_zones = zones[:self.MAX_ZONES_PER_ANALYSIS]
+            if len(zones) > self.MAX_ZONES_PER_ANALYSIS:
+                logger.warning(f"Too many zones ({len(zones)}), using first {self.MAX_ZONES_PER_ANALYSIS}")
 
-            # Check each tracking against each zone
+            # Initialize zone occupancy for this frame
+            current_occupancy = {zone['id']: set() for zone in limited_zones}
+
+            # Check each tracking against each zone (optimized for rectangles)
             for tracking in trackings:
                 if tracking['track_id'] is None:
                     continue
 
                 person_center = self._get_person_center(tracking)
 
-                for zone in zones:
+                # Check all zones (max 10) - O(10) complexity
+                for zone in limited_zones:
                     if self._is_point_in_zone(person_center, zone['coordinates']):
                         current_occupancy[zone['id']].add(tracking['track_id'])
 
@@ -60,7 +67,7 @@ class ZoneAnalyzer:
                         )
 
             # Calculate zone statuses and update occupancy tracking
-            for zone in zones:
+            for zone in limited_zones:
                 zone_id = zone['id']
                 person_count = len(current_occupancy[zone_id])
 
@@ -77,11 +84,12 @@ class ZoneAnalyzer:
 
                 zone_results[zone_id] = {
                     'zone_id': zone_id,
-                    'workstation_id': zone['workstation_id'],
+                    'workstation_id': zone.get('workstation_id'),
                     'person_count': person_count,
                     'status': status,
                     'track_ids': list(current_occupancy[zone_id]),
-                    'timestamp': analysis_timestamp
+                    'timestamp': analysis_timestamp,
+                    'zone_name': zone.get('name', f'Zone {zone_id}')
                 }
 
             # Update global occupancy tracking
@@ -90,7 +98,8 @@ class ZoneAnalyzer:
             return {
                 'analysis_timestamp': analysis_timestamp,
                 'zones': zone_results,
-                'total_persons_detected': len([t for t in trackings if t['track_id'] is not None])
+                'total_persons_detected': len([t for t in trackings if t['track_id'] is not None]),
+                'zones_analyzed': len(limited_zones)
             }
 
         except Exception as e:
@@ -106,26 +115,41 @@ class ZoneAnalyzer:
 
     def _is_point_in_zone(self, point: Tuple[float, float], zone_coordinates: Dict[str, Any]) -> bool:
         """
-        Check if point is inside zone polygon
+        Check if point is inside rectangular zone (O(1) operation)
 
         Args:
             point: (x, y) coordinates
-            zone_coordinates: Zone coordinates dict {"points": [[x1,y1], [x2,y2], ...]}
+            zone_coordinates: Zone coordinates dict with rectangle bounds
+                             {"x_min": 0, "y_min": 0, "x_max": 100, "y_max": 100}
+                             OR legacy format {"points": [[x1,y1], [x2,y2], [x3,y3], [x4,y4]]}
 
         Returns:
-            True if point is inside zone
+            True if point is inside rectangle
         """
         try:
-            if 'points' not in zone_coordinates or len(zone_coordinates['points']) < 3:
+            x, y = point
+
+            # New rectangle format (preferred)
+            if all(key in zone_coordinates for key in ['x_min', 'y_min', 'x_max', 'y_max']):
+                return (zone_coordinates['x_min'] <= x <= zone_coordinates['x_max'] and
+                        zone_coordinates['y_min'] <= y <= zone_coordinates['y_max'])
+
+            # Legacy points format - convert to rectangle
+            elif 'points' in zone_coordinates and len(zone_coordinates['points']) >= 2:
+                points = zone_coordinates['points']
+
+                # Extract min/max coordinates from points (assuming rectangle)
+                x_coords = [p[0] for p in points]
+                y_coords = [p[1] for p in points]
+
+                x_min, x_max = min(x_coords), max(x_coords)
+                y_min, y_max = min(y_coords), max(y_coords)
+
+                return (x_min <= x <= x_max and y_min <= y <= y_max)
+
+            else:
+                logger.warning("Invalid zone coordinates format")
                 return False
-
-            # Create polygon from zone coordinates
-            polygon_points = [(p[0], p[1]) for p in zone_coordinates['points']]
-            polygon = Polygon(polygon_points)
-
-            # Check if point is inside polygon
-            point_geom = Point(point[0], point[1])
-            return polygon.contains(point_geom)
 
         except Exception as e:
             logger.warning(f"Error checking point in zone: {e}")

@@ -2,10 +2,16 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 import os
+import signal
+import sys
 from dotenv import load_dotenv
 
 # Import API routers
-from app.api.v1 import workstations, zones, seed, detection
+from app.api.v1 import workstations, zones, seed, detection, video_streams
+
+# Import services for graceful shutdown
+from app.services.video_service import get_video_manager
+from app.workers.video_processor import get_video_processor
 
 # Load environment variables
 load_dotenv()
@@ -14,9 +20,43 @@ load_dotenv()
 async def lifespan(app: FastAPI):
     # Startup
     print("Starting Marmot Industrial Monitoring System...")
+
+    # Setup graceful shutdown handlers
+    def signal_handler(signum, frame):
+        print(f"Received signal {signum}, initiating graceful shutdown...")
+
+        try:
+            # Shutdown video processing system
+            video_processor = get_video_processor()
+            video_manager = get_video_manager()
+
+            print("Shutting down video processor...")
+            video_processor.shutdown()
+
+            print("Shutting down video manager...")
+            video_manager.shutdown()
+
+            print("Graceful shutdown completed")
+        except Exception as e:
+            print(f"Error during shutdown: {e}")
+
+        sys.exit(0)
+
+    # Register signal handlers
+    signal.signal(signal.SIGINT, signal_handler)   # Ctrl+C
+    signal.signal(signal.SIGTERM, signal_handler)  # Docker stop
+
     yield
+
     # Shutdown
     print("Shutting down Marmot Industrial Monitoring System...")
+    try:
+        video_processor = get_video_processor()
+        video_manager = get_video_manager()
+        video_processor.shutdown()
+        video_manager.shutdown()
+    except Exception as e:
+        print(f"Error during lifespan shutdown: {e}")
 
 # Create FastAPI app
 app = FastAPI(
@@ -60,6 +100,11 @@ app.include_router(
     prefix="/api/v1/detection",
     tags=["detection"]
 )
+app.include_router(
+    video_streams.router,
+    prefix="/api/v1",
+    tags=["video-streams"]
+)
 
 @app.get("/")
 async def root():
@@ -79,12 +124,32 @@ async def health_check():
 
 @app.get("/api/v1/status")
 async def api_status():
-    return {
-        "api_version": "v1",
-        "database": "connected",  # Will be updated when DB connection is tested
-        "yolo_model": "not_loaded",  # Will be updated when YOLO is integrated
-        "video_sources": 0
-    }
+    try:
+        # Get video system status
+        video_manager = get_video_manager()
+        video_processor = get_video_processor()
+
+        video_stats = video_manager.get_statistics()
+        processing_stats = video_processor.get_statistics()
+
+        return {
+            "api_version": "v1",
+            "database": "connected",
+            "yolo_model": "loaded",
+            "video_sources": video_stats.get('active_streams', 0),
+            "total_zones": video_stats.get('total_zones', 0),
+            "processing_fps": processing_stats.get('average_fps', 0.0),
+            "frames_processed": processing_stats.get('frames_processed', 0),
+            "system_running": video_stats.get('running', False)
+        }
+    except Exception as e:
+        return {
+            "api_version": "v1",
+            "database": "connected",
+            "yolo_model": "not_loaded",
+            "video_sources": 0,
+            "error": str(e)
+        }
 
 if __name__ == "__main__":
     import uvicorn
