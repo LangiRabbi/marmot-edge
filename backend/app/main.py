@@ -5,7 +5,7 @@ import os
 from dotenv import load_dotenv
 
 # Import API routers
-from app.api.v1 import workstations, zones, seed
+from app.api.v1 import workstations, zones, seed, detection
 
 # Load environment variables
 load_dotenv()
@@ -54,6 +54,11 @@ app.include_router(
     seed.router,
     prefix="/api/v1/seed",
     tags=["seed"]
+)
+app.include_router(
+    detection.router,
+    prefix="/api/v1/detection",
+    tags=["detection"]
 )
 
 @app.get("/")
