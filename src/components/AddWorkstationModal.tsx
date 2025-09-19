@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Loader2, Search, Monitor } from "lucide-react";
+import { Loader2, Search, Monitor, Camera, Video, Upload } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -10,11 +10,19 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+
+interface VideoSourceConfig {
+  type: 'rtsp' | 'usb' | 'file';
+  url?: string;
+  usbDeviceId?: string;
+  fileName?: string;
+}
 
 interface AddWorkstationModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onAddWorkstation: (name: string, ipAddress: string) => void;
+  onAddWorkstation: (name: string, ipAddress: string, videoConfig?: VideoSourceConfig) => void;
 }
 
 const mockDevices = [
@@ -28,15 +36,39 @@ export function AddWorkstationModal({ open, onOpenChange, onAddWorkstation }: Ad
     name: "",
     ipAddress: ""
   });
+  const [videoSource, setVideoSource] = useState<'rtsp' | 'usb' | 'file'>('rtsp');
+  const [rtspUrl, setRtspUrl] = useState('');
+  const [selectedUsbDevice, setSelectedUsbDevice] = useState('');
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [isScanning, setIsScanning] = useState(false);
   const [discoveredDevices, setDiscoveredDevices] = useState<typeof mockDevices>([]);
   const [showDevices, setShowDevices] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Validate file size (500MB limit)
+    if (videoSource === 'file' && uploadedFile && uploadedFile.size > 500 * 1024 * 1024) {
+      alert('File size exceeds 500MB limit. Please select a smaller file.');
+      return;
+    }
+
     if (formData.name.trim() && formData.ipAddress.trim()) {
-      onAddWorkstation(formData.name.trim(), formData.ipAddress.trim());
+      const videoConfig: VideoSourceConfig = {
+        type: videoSource,
+        url: videoSource === 'rtsp' ? rtspUrl : undefined,
+        usbDeviceId: videoSource === 'usb' ? selectedUsbDevice : undefined,
+        fileName: videoSource === 'file' ? uploadedFile?.name : undefined
+      };
+
+      onAddWorkstation(formData.name.trim(), formData.ipAddress.trim(), videoConfig);
+
+      // Reset form
       setFormData({ name: "", ipAddress: "" });
+      setVideoSource('rtsp');
+      setRtspUrl('');
+      setSelectedUsbDevice('');
+      setUploadedFile(null);
       setShowDevices(false);
       setDiscoveredDevices([]);
     }
@@ -65,7 +97,7 @@ export function AddWorkstationModal({ open, onOpenChange, onAddWorkstation }: Ad
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="glass-card border-border max-w-md mx-auto fixed">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-background/95 backdrop-blur-md border border-border/50 shadow-2xl">
         <DialogHeader>
           <DialogTitle className="text-xl font-semibold text-foreground">
             Add New Workstation
@@ -148,6 +180,114 @@ export function AddWorkstationModal({ open, onOpenChange, onAddWorkstation }: Ad
               className="bg-background/50 border-border text-foreground focus:border-primary focus:ring-1 focus:ring-primary/50 h-10 px-3"
               required
             />
+          </div>
+
+          {/* Video Source Selection */}
+          <div className="space-y-4">
+            <Label className="text-foreground font-medium">Video Source</Label>
+            <RadioGroup
+              value={videoSource}
+              onValueChange={(value) => setVideoSource(value as 'rtsp' | 'usb' | 'file')}
+              className="space-y-3"
+            >
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="rtsp" id="rtsp" />
+                <Label htmlFor="rtsp" className="flex items-center space-x-2 cursor-pointer">
+                  <Camera className="h-4 w-4 text-primary" />
+                  <span>Live Camera (RTSP)</span>
+                </Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="usb" id="usb" />
+                <Label htmlFor="usb" className="flex items-center space-x-2 cursor-pointer">
+                  <Video className="h-4 w-4 text-primary" />
+                  <span>USB Camera</span>
+                </Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="file" id="file" />
+                <Label htmlFor="file" className="flex items-center space-x-2 cursor-pointer">
+                  <Upload className="h-4 w-4 text-primary" />
+                  <span>Upload Video File</span>
+                </Label>
+              </div>
+            </RadioGroup>
+
+            {/* RTSP Configuration */}
+            {videoSource === 'rtsp' && (
+              <div className="space-y-3 p-4 bg-muted/30 rounded-lg border border-border">
+                <Label htmlFor="rtspUrl" className="text-foreground font-medium">
+                  RTSP URL
+                </Label>
+                <Input
+                  id="rtspUrl"
+                  value={rtspUrl}
+                  onChange={(e) => setRtspUrl(e.target.value)}
+                  placeholder="rtsp://192.168.1.100:554/stream"
+                  className="bg-background/50 border-border text-foreground focus:border-primary focus:ring-1 focus:ring-primary/50"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="border-border hover:bg-muted text-foreground"
+                >
+                  Test Connection
+                </Button>
+              </div>
+            )}
+
+            {/* USB Camera Configuration */}
+            {videoSource === 'usb' && (
+              <div className="space-y-3 p-4 bg-muted/30 rounded-lg border border-border">
+                <Label className="text-foreground font-medium">USB Camera Device</Label>
+                <select
+                  value={selectedUsbDevice}
+                  onChange={(e) => setSelectedUsbDevice(e.target.value)}
+                  className="w-full p-2 bg-background/50 border border-border rounded-md text-foreground focus:border-primary focus:ring-1 focus:ring-primary/50"
+                >
+                  <option value="">Select USB Camera...</option>
+                  <option value="device-1">Default Camera (videoinput)</option>
+                  <option value="device-2">USB Camera 2</option>
+                </select>
+                {selectedUsbDevice && (
+                  <div className="mt-3">
+                    <div className="w-full h-32 bg-black/20 border border-border rounded-md flex items-center justify-center">
+                      <span className="text-muted-foreground text-sm">Camera Preview</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* File Upload Configuration */}
+            {videoSource === 'file' && (
+              <div className="space-y-4 p-4 bg-muted/30 rounded-lg border border-border">
+                <Label htmlFor="videoFile" className="text-foreground font-medium">
+                  Video File (MP4, WebM, MOV - Max 500MB)
+                </Label>
+                <div className="relative">
+                  <Input
+                    id="videoFile"
+                    type="file"
+                    accept=".mp4,.webm,.mov"
+                    onChange={(e) => setUploadedFile(e.target.files?.[0] || null)}
+                    className="w-full h-12 bg-background/50 border-border text-foreground
+                              file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0
+                              file:text-sm file:font-medium file:bg-primary file:text-primary-foreground
+                              hover:file:bg-primary/90 file:cursor-pointer cursor-pointer"
+                  />
+                </div>
+                {uploadedFile && (
+                  <div className="text-sm text-muted-foreground bg-background/30 p-2 rounded border">
+                    <strong>Selected:</strong> {uploadedFile.name} ({(uploadedFile.size / 1024 / 1024).toFixed(1)} MB)
+                    {uploadedFile.size > 500 * 1024 * 1024 && (
+                      <div className="text-red-500 mt-1">⚠️ File size exceeds 500MB limit</div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           <div className="flex justify-end space-x-3 pt-4">
