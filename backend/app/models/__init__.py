@@ -1,9 +1,9 @@
 from .base import Base, BaseModel
-from .workstation import Workstation
-from .zone import Zone
 from .detection import Detection
 from .efficiency import EfficiencyRecord
-from .settings import SystemSettings, AlertSettings
+from .settings import AlertSettings, SystemSettings
+from .workstation import Workstation
+from .zone import Zone
 
 __all__ = [
     "Base",
@@ -13,5 +13,5 @@ __all__ = [
     "Detection",
     "EfficiencyRecord",
     "SystemSettings",
-    "AlertSettings"
+    "AlertSettings",
 ]

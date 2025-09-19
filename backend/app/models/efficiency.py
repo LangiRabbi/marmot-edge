@@ -1,8 +1,11 @@
-from sqlalchemy import String, Integer, ForeignKey, Float, DateTime, Time
-from sqlalchemy.orm import Mapped, mapped_column, relationship
 from datetime import datetime, time
 from typing import Optional
+
+from sqlalchemy import DateTime, Float, ForeignKey, Integer, String, Time
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
 from .base import BaseModel
+
 
 class EfficiencyRecord(BaseModel):
     __tablename__ = "efficiency_records"
@@ -31,4 +34,6 @@ class EfficiencyRecord(BaseModel):
     last_calculated_at: Mapped[datetime] = mapped_column(DateTime)
 
     # Relationships
-    workstation: Mapped["Workstation"] = relationship("Workstation", back_populates="efficiency_records")
+    workstation: Mapped["Workstation"] = relationship(
+        "Workstation", back_populates="efficiency_records"
+    )

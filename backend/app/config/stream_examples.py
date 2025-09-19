@@ -1,7 +1,8 @@
 """
 Example stream configurations for testing video processing system
 """
-from typing import List, Dict, Any
+
+from typing import Any, Dict, List
 
 # USB Camera Examples
 USB_CAMERA_EXAMPLES = [
@@ -19,7 +20,7 @@ USB_CAMERA_EXAMPLES = [
                 "x_max": 320,
                 "y_max": 240,
                 "zone_id": 1,
-                "name": "Assembly Station 1"
+                "name": "Assembly Station 1",
             },
             {
                 "x_min": 320,
@@ -27,9 +28,9 @@ USB_CAMERA_EXAMPLES = [
                 "x_max": 640,
                 "y_max": 240,
                 "zone_id": 2,
-                "name": "Assembly Station 2"
-            }
-        ]
+                "name": "Assembly Station 2",
+            },
+        ],
     },
     {
         "stream_id": "usb_cam_02",
@@ -45,10 +46,10 @@ USB_CAMERA_EXAMPLES = [
                 "x_max": 540,
                 "y_max": 380,
                 "zone_id": 3,
-                "name": "QC Station"
+                "name": "QC Station",
             }
-        ]
-    }
+        ],
+    },
 ]
 
 # RTSP Stream Examples
@@ -67,7 +68,7 @@ RTSP_STREAM_EXAMPLES = [
                 "x_max": 400,
                 "y_max": 300,
                 "zone_id": 4,
-                "name": "Loading Dock"
+                "name": "Loading Dock",
             },
             {
                 "x_min": 400,
@@ -75,7 +76,7 @@ RTSP_STREAM_EXAMPLES = [
                 "x_max": 800,
                 "y_max": 300,
                 "zone_id": 5,
-                "name": "Storage Area"
+                "name": "Storage Area",
             },
             {
                 "x_min": 0,
@@ -83,9 +84,9 @@ RTSP_STREAM_EXAMPLES = [
                 "x_max": 800,
                 "y_max": 600,
                 "zone_id": 6,
-                "name": "Packaging Area"
-            }
-        ]
+                "name": "Packaging Area",
+            },
+        ],
     },
     {
         "stream_id": "rtsp_production_line",
@@ -101,7 +102,7 @@ RTSP_STREAM_EXAMPLES = [
                 "x_max": 200,
                 "y_max": 400,
                 "zone_id": 7,
-                "name": "Station 1"
+                "name": "Station 1",
             },
             {
                 "x_min": 200,
@@ -109,7 +110,7 @@ RTSP_STREAM_EXAMPLES = [
                 "x_max": 400,
                 "y_max": 400,
                 "zone_id": 8,
-                "name": "Station 2"
+                "name": "Station 2",
             },
             {
                 "x_min": 400,
@@ -117,7 +118,7 @@ RTSP_STREAM_EXAMPLES = [
                 "x_max": 600,
                 "y_max": 400,
                 "zone_id": 9,
-                "name": "Station 3"
+                "name": "Station 3",
             },
             {
                 "x_min": 600,
@@ -125,10 +126,10 @@ RTSP_STREAM_EXAMPLES = [
                 "x_max": 800,
                 "y_max": 400,
                 "zone_id": 10,
-                "name": "Final Assembly"
-            }
-        ]
-    }
+                "name": "Final Assembly",
+            },
+        ],
+    },
 ]
 
 # File-based Examples (for testing)
@@ -147,7 +148,7 @@ FILE_STREAM_EXAMPLES = [
                 "x_max": 720,
                 "y_max": 640,
                 "zone_id": 1,
-                "name": "Top Zone"
+                "name": "Top Zone",
             },
             {
                 "x_min": 0,
@@ -155,9 +156,9 @@ FILE_STREAM_EXAMPLES = [
                 "x_max": 720,
                 "y_max": 1280,
                 "zone_id": 2,
-                "name": "Bottom Zone"
-            }
-        ]
+                "name": "Bottom Zone",
+            },
+        ],
     }
 ]
 
@@ -177,9 +178,9 @@ IP_CAMERA_EXAMPLES = [
                 "x_max": 600,
                 "y_max": 400,
                 "zone_id": 11,
-                "name": "Entry Zone"
+                "name": "Entry Zone",
             }
-        ]
+        ],
     }
 ]
 
@@ -187,13 +188,14 @@ IP_CAMERA_EXAMPLES = [
 MULTI_STREAM_SETUP = {
     "streams": [
         USB_CAMERA_EXAMPLES[0],  # USB camera for close monitoring
-        RTSP_STREAM_EXAMPLES[0], # RTSP for warehouse overview
-        FILE_STREAM_EXAMPLES[0]  # File for testing
+        RTSP_STREAM_EXAMPLES[0],  # RTSP for warehouse overview
+        FILE_STREAM_EXAMPLES[0],  # File for testing
     ],
     "total_streams": 3,
     "total_zones": 9,
-    "description": "Example multi-stream industrial monitoring setup"
+    "description": "Example multi-stream industrial monitoring setup",
 }
+
 
 def get_example_by_type(stream_type: str) -> List[Dict[str, Any]]:
     """Get example configurations by stream type"""
@@ -201,9 +203,10 @@ def get_example_by_type(stream_type: str) -> List[Dict[str, Any]]:
         "usb": USB_CAMERA_EXAMPLES,
         "rtsp": RTSP_STREAM_EXAMPLES,
         "file": FILE_STREAM_EXAMPLES,
-        "ip": IP_CAMERA_EXAMPLES
+        "ip": IP_CAMERA_EXAMPLES,
     }
     return examples.get(stream_type, [])
+
 
 def get_test_setup() -> Dict[str, Any]:
     """Get a simple test setup for development"""
@@ -221,7 +224,7 @@ def get_test_setup() -> Dict[str, Any]:
                 "x_max": 360,
                 "y_max": 640,
                 "zone_id": 1,
-                "name": "Left Zone"
+                "name": "Left Zone",
             },
             {
                 "x_min": 360,
@@ -229,10 +232,11 @@ def get_test_setup() -> Dict[str, Any]:
                 "x_max": 720,
                 "y_max": 640,
                 "zone_id": 2,
-                "name": "Right Zone"
-            }
-        ]
+                "name": "Right Zone",
+            },
+        ],
     }
+
 
 def validate_stream_config(config: Dict[str, Any]) -> bool:
     """Validate stream configuration"""

@@ -359,7 +359,7 @@ export function VideoCanvasOverlay({
         // Handle resizing logic based on resize handle
         // This is a simplified version - you can expand for all handles
         const handle = dragState.resizeHandle;
-        let newZone = { ...zone };
+        const newZone = { ...zone };
 
         if (handle.includes('e')) { // east handles
           const newWidth = pixelToPercent(deltaX, 0).x + zone.width;

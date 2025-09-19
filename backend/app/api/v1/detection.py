@@ -1,19 +1,23 @@
 """
 Detection API endpoints with YOLOv11 tracking support
 """
-from fastapi import APIRouter, Depends, UploadFile, File, HTTPException, BackgroundTasks
-from sqlalchemy.orm import Session
-from typing import List, Dict, Any, Optional
+
 import time
 from datetime import datetime
+from typing import Any, Dict, List, Optional
 
-from app.database import get_db
-from app.services.yolo_service import get_yolo_tracking_service, YOLOTrackingService
-from app.services.zone_analyzer import get_zone_analyzer, ZoneAnalyzer
+from fastapi import (APIRouter, BackgroundTasks, Depends, File, HTTPException,
+                     UploadFile)
+from sqlalchemy.orm import Session
+
 from app.crud.workstation import get_workstations
 from app.crud.zone import get_zones_by_workstation
+from app.database import get_db
 from app.models.detection import Detection, TrackingSession
 from app.schemas.detection import DetectionResponse, TrackingAnalysisResponse
+from app.services.yolo_service import (YOLOTrackingService,
+                                       get_yolo_tracking_service)
+from app.services.zone_analyzer import ZoneAnalyzer, get_zone_analyzer
 
 router = APIRouter()
 
@@ -26,7 +30,7 @@ async def detect_persons_in_image(
     persist_tracking: bool = True,
     db: Session = Depends(get_db),
     yolo_service: YOLOTrackingService = Depends(get_yolo_tracking_service),
-    zone_analyzer: ZoneAnalyzer = Depends(get_zone_analyzer)
+    zone_analyzer: ZoneAnalyzer = Depends(get_zone_analyzer),
 ):
     """
     Detect and track persons in uploaded image
@@ -44,7 +48,7 @@ async def detect_persons_in_image(
         start_time = time.time()
 
         # Validate file type
-        if not file.content_type.startswith('image/'):
+        if not file.content_type.startswith("image/"):
             raise HTTPException(status_code=400, detail="File must be an image")
 
         # Read image data
@@ -61,9 +65,9 @@ async def detect_persons_in_image(
         zones = get_zones_by_workstation(db, workstation_id)
         zone_data = [
             {
-                'id': zone.id,
-                'workstation_id': zone.workstation_id,
-                'coordinates': zone.coordinates
+                "id": zone.id,
+                "workstation_id": zone.workstation_id,
+                "coordinates": zone.coordinates,
             }
             for zone in zones
         ]
@@ -80,12 +84,21 @@ async def detect_persons_in_image(
             zone_id=None,  # Will be set based on primary zone if needed
             frame_timestamp=datetime.utcnow(),
             person_count=len(trackings),
-            confidence_scores={"detections": [t['confidence'] for t in trackings]},
-            bounding_boxes={"boxes": [[t['bbox']['x1'], t['bbox']['y1'], t['bbox']['x2'], t['bbox']['y2']] for t in trackings]},
-            track_ids={"track_ids": [t['track_id'] for t in trackings if t['track_id'] is not None]},
+            confidence_scores={"detections": [t["confidence"] for t in trackings]},
+            bounding_boxes={
+                "boxes": [
+                    [t["bbox"]["x1"], t["bbox"]["y1"], t["bbox"]["x2"], t["bbox"]["y2"]]
+                    for t in trackings
+                ]
+            },
+            track_ids={
+                "track_ids": [
+                    t["track_id"] for t in trackings if t["track_id"] is not None
+                ]
+            },
             tracking_data={"tracks": trackings},
             zone_status="multiple_zones",  # Since we analyze multiple zones
-            processing_time_ms=processing_time
+            processing_time_ms=processing_time,
         )
 
         # Save to database
@@ -103,7 +116,7 @@ async def detect_persons_in_image(
             person_count=len(trackings),
             trackings=trackings,
             zone_analysis=zone_analysis,
-            processing_time_ms=processing_time
+            processing_time_ms=processing_time,
         )
 
     except Exception as e:
@@ -116,7 +129,7 @@ async def start_video_stream_detection(
     video_source: str,  # RTSP URL, USB camera index, or file path
     confidence_threshold: float = 0.5,
     db: Session = Depends(get_db),
-    background_tasks: BackgroundTasks = BackgroundTasks()
+    background_tasks: BackgroundTasks = BackgroundTasks(),
 ):
     """
     Start real-time video stream detection (for Checkpoint 3)
@@ -128,7 +141,7 @@ async def start_video_stream_detection(
         "message": "Video stream detection will be implemented in Checkpoint 3",
         "workstation_id": workstation_id,
         "video_source": video_source,
-        "status": "placeholder"
+        "status": "placeholder",
     }
 
 
@@ -137,7 +150,7 @@ async def get_tracking_history(
     track_id: int,
     workstation_id: int,
     hours: int = 1,
-    zone_analyzer: ZoneAnalyzer = Depends(get_zone_analyzer)
+    zone_analyzer: ZoneAnalyzer = Depends(get_zone_analyzer),
 ):
     """
     Get movement history for specific track ID
@@ -157,18 +170,20 @@ async def get_tracking_history(
             "track_id": track_id,
             "workstation_id": workstation_id,
             "movement_history": movement_history,
-            "total_movements": len(movement_history)
+            "total_movements": len(movement_history),
         }
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get tracking history: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to get tracking history: {str(e)}"
+        )
 
 
 @router.get("/zones/{zone_id}/analysis", response_model=TrackingAnalysisResponse)
 async def get_zone_analysis(
     zone_id: int,
     hours: int = 1,
-    zone_analyzer: ZoneAnalyzer = Depends(get_zone_analyzer)
+    zone_analyzer: ZoneAnalyzer = Depends(get_zone_analyzer),
 ):
     """
     Get efficiency analysis for specific zone
@@ -188,7 +203,7 @@ async def get_zone_analysis(
             zone_id=zone_id,
             time_window_hours=hours,
             efficiency_data=efficiency_data,
-            status_history=status_history
+            status_history=status_history,
         )
 
     except Exception as e:
@@ -197,8 +212,7 @@ async def get_zone_analysis(
 
 @router.post("/tracking/cleanup")
 async def cleanup_old_tracking_data(
-    hours_to_keep: int = 24,
-    zone_analyzer: ZoneAnalyzer = Depends(get_zone_analyzer)
+    hours_to_keep: int = 24, zone_analyzer: ZoneAnalyzer = Depends(get_zone_analyzer)
 ):
     """
     Clean up old tracking data to prevent memory leaks
@@ -214,7 +228,7 @@ async def cleanup_old_tracking_data(
 
         return {
             "message": f"Cleaned tracking data older than {hours_to_keep} hours",
-            "timestamp": datetime.utcnow()
+            "timestamp": datetime.utcnow(),
         }
 
     except Exception as e:
@@ -225,7 +239,7 @@ async def _update_tracking_sessions(
     db: Session,
     trackings: List[Dict[str, Any]],
     workstation_id: int,
-    zone_analysis: Dict[str, Any]
+    zone_analysis: Dict[str, Any],
 ):
     """
     Update or create tracking sessions for detected persons
@@ -240,16 +254,20 @@ async def _update_tracking_sessions(
         current_time = datetime.utcnow()
 
         for tracking in trackings:
-            track_id = tracking.get('track_id')
+            track_id = tracking.get("track_id")
             if track_id is None:
                 continue
 
             # Find existing session or create new one
-            session = db.query(TrackingSession).filter(
-                TrackingSession.track_id == track_id,
-                TrackingSession.workstation_id == workstation_id,
-                TrackingSession.is_active == True
-            ).first()
+            session = (
+                db.query(TrackingSession)
+                .filter(
+                    TrackingSession.track_id == track_id,
+                    TrackingSession.workstation_id == workstation_id,
+                    TrackingSession.is_active == True,
+                )
+                .first()
+            )
 
             if session:
                 # Update existing session
@@ -263,13 +281,13 @@ async def _update_tracking_sessions(
                     first_seen=current_time,
                     last_seen=current_time,
                     total_detections=1,
-                    is_active=True
+                    is_active=True,
                 )
                 db.add(session)
 
             # Update zone information if person is in a zone
-            for zone_id, zone_result in zone_analysis['zones'].items():
-                if track_id in zone_result['track_ids']:
+            for zone_id, zone_result in zone_analysis["zones"].items():
+                if track_id in zone_result["track_ids"]:
                     session.current_zone_id = zone_id
                     break
 

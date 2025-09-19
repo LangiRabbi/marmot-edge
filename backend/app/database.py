@@ -1,9 +1,10 @@
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-from contextlib import asynccontextmanager
 import os
+from contextlib import asynccontextmanager
+
 from dotenv import load_dotenv
+from sqlalchemy import create_engine
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from sqlalchemy.orm import sessionmaker
 
 load_dotenv()
 
@@ -19,15 +20,12 @@ else:
 
 # Create async engine
 engine = create_async_engine(
-    ASYNC_DATABASE_URL,
-    echo=os.getenv("DEBUG", "False").lower() == "true",
-    future=True
+    ASYNC_DATABASE_URL, echo=os.getenv("DEBUG", "False").lower() == "true", future=True
 )
 
 # Create session factory
-async_session = sessionmaker(
-    engine, class_=AsyncSession, expire_on_commit=False
-)
+async_session = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+
 
 @asynccontextmanager
 async def get_db_session():
@@ -40,6 +38,7 @@ async def get_db_session():
             raise
         finally:
             await session.close()
+
 
 async def get_db():
     async with get_db_session() as session:

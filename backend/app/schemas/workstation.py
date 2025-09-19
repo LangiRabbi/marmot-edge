@@ -1,6 +1,8 @@
-from pydantic import BaseModel, Field
-from typing import Optional, Dict, Any, List
 from datetime import datetime
+from typing import Any, Dict, List, Optional
+
+from pydantic import BaseModel, Field
+
 
 class WorkstationBase(BaseModel):
     name: str = Field(..., min_length=1, max_length=255)
@@ -10,8 +12,10 @@ class WorkstationBase(BaseModel):
     video_source_url: Optional[str] = None
     video_config: Optional[Dict[str, Any]] = None
 
+
 class WorkstationCreate(WorkstationBase):
     pass
+
 
 class WorkstationUpdate(BaseModel):
     name: Optional[str] = Field(None, min_length=1, max_length=255)
@@ -20,6 +24,7 @@ class WorkstationUpdate(BaseModel):
     video_source_type: Optional[str] = Field(None, pattern="^(rtsp|usb|ip|file)$")
     video_source_url: Optional[str] = None
     video_config: Optional[Dict[str, Any]] = None
+
 
 class WorkstationResponse(WorkstationBase):
     id: int
@@ -31,9 +36,12 @@ class WorkstationResponse(WorkstationBase):
     class Config:
         from_attributes = True
 
+
 class WorkstationWithZones(WorkstationResponse):
     zones: List["ZoneResponse"] = []
 
+
 # Forward reference for zones
 from .zone import ZoneResponse
+
 WorkstationWithZones.model_rebuild()

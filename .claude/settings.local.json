@@ -39,7 +39,15 @@
       "mcp__playwright__browser_wait_for",
       "mcp__playwright__browser_press_key",
       "Bash(venvScriptsactivate.bat)",
-      "Bash(venv/Scripts/activate:*)"
+      "Bash(venv/Scripts/activate:*)",
+      "mcp__playwright__browser_type",
+      "mcp__context7__resolve-library-id",
+      "mcp__context7__get-library-docs",
+      "WebFetch(domain:stackoverflow.com)",
+      "Bash(start http://localhost:8083)",
+      "Bash(gh run list:*)",
+      "Bash(gh run view:*)",
+      "Bash(npm run lint)"
     ],
     "deny": [],
     "ask": []

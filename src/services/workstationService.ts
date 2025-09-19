@@ -94,12 +94,28 @@ const saveMockWorkstations = (workstations: Workstation[]) => {
   }
 };
 
+interface BackendWorkstation {
+  id: number;
+  name: string;
+  description?: string;
+  current_status: string;
+  video_source_config?: Record<string, unknown>;
+  [key: string]: unknown;
+}
+
+interface BackendZone {
+  id: number;
+  person_count?: number;
+  status?: string;
+  [key: string]: unknown;
+}
+
 let mockWorkstations = getMockWorkstations();
 
 class WorkstationService {
   async getWorkstations(): Promise<Workstation[]> {
     try {
-      const response = await apiClient.get<any[]>('/workstations/');
+      const response = await apiClient.get<BackendWorkstation[]>('/workstations/');
 
       // Transform backend data to frontend interface
       const transformedData = response.data.map((backendWorkstation) => ({
@@ -139,11 +155,11 @@ class WorkstationService {
     }
   }
 
-  private calculatePeopleCount(zones: any[]): number {
+  private calculatePeopleCount(zones: BackendZone[]): number {
     return zones.reduce((total, zone) => total + (zone.person_count || 0), 0);
   }
 
-  private calculateEfficiency(zones: any[]): number {
+  private calculateEfficiency(zones: BackendZone[]): number {
     const workingZones = zones.filter(zone => zone.status === 'work');
     const totalZones = zones.length;
     if (totalZones === 0) return 0;
@@ -152,7 +168,7 @@ class WorkstationService {
 
   async getWorkstation(id: number): Promise<Workstation> {
     try {
-      const response = await apiClient.get<any>(`/workstations/${id}`);
+      const response = await apiClient.get<BackendWorkstation>(`/workstations/${id}`);
 
       // Transform backend data to frontend interface
       const backendWorkstation = response.data;

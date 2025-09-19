@@ -1,13 +1,16 @@
 """
 Detection and tracking Pydantic schemas
 """
-from pydantic import BaseModel
-from typing import List, Dict, Any, Optional
+
 from datetime import datetime
+from typing import Any, Dict, List, Optional
+
+from pydantic import BaseModel
 
 
 class BoundingBox(BaseModel):
     """Bounding box coordinates"""
+
     x1: float
     y1: float
     x2: float
@@ -16,6 +19,7 @@ class BoundingBox(BaseModel):
 
 class PersonTracking(BaseModel):
     """Individual person tracking result"""
+
     bbox: BoundingBox
     confidence: float
     class_name: str = "person"
@@ -24,6 +28,7 @@ class PersonTracking(BaseModel):
 
 class ZoneStatus(BaseModel):
     """Zone status and occupancy"""
+
     zone_id: int
     workstation_id: int
     person_count: int
@@ -34,6 +39,7 @@ class ZoneStatus(BaseModel):
 
 class ZoneAnalysis(BaseModel):
     """Complete zone analysis results"""
+
     analysis_timestamp: datetime
     zones: Dict[int, ZoneStatus]
     total_persons_detected: int
@@ -41,17 +47,19 @@ class ZoneAnalysis(BaseModel):
 
 class DetectionResponse(BaseModel):
     """Response for detection API endpoints"""
+
     detection_id: int
     workstation_id: int
     timestamp: datetime
     person_count: int
     trackings: List[Dict[str, Any]]  # Raw tracking results
-    zone_analysis: Dict[str, Any]    # Zone analysis results
+    zone_analysis: Dict[str, Any]  # Zone analysis results
     processing_time_ms: float
 
 
 class EfficiencyData(BaseModel):
     """Zone efficiency metrics"""
+
     zone_id: int
     time_window_hours: int
     work_time_minutes: float
@@ -62,6 +70,7 @@ class EfficiencyData(BaseModel):
 
 class StatusChange(BaseModel):
     """Zone status change record"""
+
     status: str
     timestamp: datetime
     person_count: int
@@ -69,6 +78,7 @@ class StatusChange(BaseModel):
 
 class TrackingAnalysisResponse(BaseModel):
     """Response for zone tracking analysis"""
+
     zone_id: int
     time_window_hours: int
     efficiency_data: EfficiencyData
@@ -77,6 +87,7 @@ class TrackingAnalysisResponse(BaseModel):
 
 class TrackingMovement(BaseModel):
     """Person movement record"""
+
     zone_id: int
     timestamp: datetime
     entry_type: str
@@ -84,6 +95,7 @@ class TrackingMovement(BaseModel):
 
 class TrackingHistoryResponse(BaseModel):
     """Response for tracking history"""
+
     track_id: int
     workstation_id: int
     movement_history: List[TrackingMovement]
@@ -92,6 +104,7 @@ class TrackingHistoryResponse(BaseModel):
 
 class TrackingSessionData(BaseModel):
     """Tracking session information"""
+
     track_id: int
     workstation_id: int
     first_seen: datetime

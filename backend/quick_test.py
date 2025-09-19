@@ -2,25 +2,30 @@
 """
 Quick test for video streaming imports and basic functionality
 """
-import sys
 import os
+import sys
 
 # Add the app directory to Python path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'app'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "app"))
+
 
 def test_imports():
     """Test all video streaming imports"""
     print("Testing imports...")
 
     try:
-        from app.services.video_service import VideoManager, StreamConfig, Rectangle
+        from app.services.video_service import (Rectangle, StreamConfig,
+                                                VideoManager)
+
         print("[OK] Video service imports")
     except Exception as e:
         print(f"[ERROR] Video service imports: {e}")
         return False
 
     try:
-        from app.workers.video_processor import VideoProcessor, RectangleZoneAnalyzer
+        from app.workers.video_processor import (RectangleZoneAnalyzer,
+                                                 VideoProcessor)
+
         print("[OK] Video processor imports")
     except Exception as e:
         print(f"[ERROR] Video processor imports: {e}")
@@ -28,6 +33,7 @@ def test_imports():
 
     try:
         from app.services.zone_analyzer import ZoneAnalyzer
+
         print("[OK] Zone analyzer imports")
     except Exception as e:
         print(f"[ERROR] Zone analyzer imports: {e}")
@@ -35,6 +41,7 @@ def test_imports():
 
     try:
         from app.services.yolo_service import get_yolo_tracking_service
+
         print("[OK] YOLO service imports")
     except Exception as e:
         print(f"[ERROR] YOLO service imports: {e}")
@@ -42,12 +49,14 @@ def test_imports():
 
     return True
 
+
 def test_basic_functionality():
     """Test basic video manager functionality"""
     print("\nTesting basic functionality...")
 
     try:
-        from app.services.video_service import VideoManager, StreamConfig, Rectangle
+        from app.services.video_service import (Rectangle, StreamConfig,
+                                                VideoManager)
 
         # Create video manager
         manager = VideoManager()
@@ -55,8 +64,7 @@ def test_basic_functionality():
 
         # Create test rectangle
         rect = Rectangle(
-            x_min=0, y_min=0, x_max=100, y_max=100,
-            zone_id=1, name="Test Zone"
+            x_min=0, y_min=0, x_max=100, y_max=100, zone_id=1, name="Test Zone"
         )
         print("[OK] Rectangle created")
 
@@ -65,7 +73,7 @@ def test_basic_functionality():
             stream_id="test",
             source_url="test.mp4",
             name="Test Stream",
-            stream_type="file"
+            stream_type="file",
         )
         print("[OK] Stream config created")
 
@@ -79,13 +87,14 @@ def test_basic_functionality():
         print(f"[ERROR] Basic functionality test: {e}")
         return False
 
+
 def test_zone_analyzer():
     """Test rectangle zone analyzer"""
     print("\nTesting zone analyzer...")
 
     try:
-        from app.workers.video_processor import RectangleZoneAnalyzer
         from app.services.video_service import Rectangle
+        from app.workers.video_processor import RectangleZoneAnalyzer
 
         analyzer = RectangleZoneAnalyzer()
         print("[OK] Zone analyzer created")
@@ -93,20 +102,22 @@ def test_zone_analyzer():
         # Test rectangle zones
         rectangles = [
             Rectangle(0, 0, 100, 100, 1, "Zone 1"),
-            Rectangle(100, 0, 200, 100, 2, "Zone 2")
+            Rectangle(100, 0, 200, 100, 2, "Zone 2"),
         ]
 
         # Mock tracking data
         trackings = [
             {
-                'track_id': 1,
-                'bbox': {'x1': 50, 'y1': 50, 'x2': 60, 'y2': 60},
-                'confidence': 0.9
+                "track_id": 1,
+                "bbox": {"x1": 50, "y1": 50, "x2": 60, "y2": 60},
+                "confidence": 0.9,
             }
         ]
 
         # Test analysis
-        result = analyzer.analyze_trackings_in_rectangles(trackings, rectangles, "test_stream")
+        result = analyzer.analyze_trackings_in_rectangles(
+            trackings, rectangles, "test_stream"
+        )
         print(f"[OK] Zone analysis: {len(result['zones'])} zones analyzed")
 
         return True
@@ -114,6 +125,7 @@ def test_zone_analyzer():
     except Exception as e:
         print(f"[ERROR] Zone analyzer test: {e}")
         return False
+
 
 def main():
     """Run quick tests"""
@@ -141,6 +153,7 @@ def main():
         print("[ERROR] Some tests failed!")
 
     return success
+
 
 if __name__ == "__main__":
     success = main()

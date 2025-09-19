@@ -4,13 +4,15 @@ Test script for video streaming and processing system
 Tests multiple streams with rectangular zones
 """
 import asyncio
-import time
-import requests
 import json
+import time
 from datetime import datetime
+
+import requests
 
 # API base URL
 BASE_URL = "http://localhost:8001/api/v1"
+
 
 def test_api_connection():
     """Test basic API connection"""
@@ -21,6 +23,7 @@ def test_api_connection():
     except Exception as e:
         print(f"[ERROR] API Connection failed: {e}")
         return False
+
 
 def test_create_file_stream():
     """Test creating a video stream from file"""
@@ -38,7 +41,7 @@ def test_create_file_stream():
                 "x_max": 720,
                 "y_max": 640,
                 "zone_id": 1,
-                "name": "Top Zone"
+                "name": "Top Zone",
             },
             {
                 "x_min": 0,
@@ -46,9 +49,9 @@ def test_create_file_stream():
                 "x_max": 720,
                 "y_max": 1280,
                 "zone_id": 2,
-                "name": "Bottom Zone"
-            }
-        ]
+                "name": "Bottom Zone",
+            },
+        ],
     }
 
     try:
@@ -58,6 +61,7 @@ def test_create_file_stream():
     except Exception as e:
         print(f"[ERROR] Stream creation failed: {e}")
         return False
+
 
 def test_create_usb_stream():
     """Test creating USB camera stream"""
@@ -75,7 +79,7 @@ def test_create_usb_stream():
                 "x_max": 320,
                 "y_max": 240,
                 "zone_id": 3,
-                "name": "Left Station"
+                "name": "Left Station",
             },
             {
                 "x_min": 320,
@@ -83,9 +87,9 @@ def test_create_usb_stream():
                 "x_max": 640,
                 "y_max": 240,
                 "zone_id": 4,
-                "name": "Right Station"
-            }
-        ]
+                "name": "Right Station",
+            },
+        ],
     }
 
     try:
@@ -95,6 +99,7 @@ def test_create_usb_stream():
     except Exception as e:
         print(f"[ERROR] USB Stream creation failed: {e}")
         return False
+
 
 def test_list_streams():
     """Test listing all streams"""
@@ -109,6 +114,7 @@ def test_list_streams():
         print(f"[ERROR] List streams failed: {e}")
         return []
 
+
 def test_stream_status(stream_id: str):
     """Test getting stream status"""
     try:
@@ -116,7 +122,9 @@ def test_stream_status(stream_id: str):
         status = response.json()
         print(f"[OK] Stream {stream_id} status:")
         print(f"   Status: {status.get('status', 'unknown')}")
-        print(f"   FPS: {status.get('fps_actual', 0):.1f}/{status.get('fps_target', 0)}")
+        print(
+            f"   FPS: {status.get('fps_actual', 0):.1f}/{status.get('fps_target', 0)}"
+        )
         print(f"   Frames: {status.get('frame_count', 0)}")
         print(f"   Queue: {status.get('queue_size', 0)}")
         return status
@@ -124,31 +132,41 @@ def test_stream_status(stream_id: str):
         print(f"[ERROR] Stream status failed: {e}")
         return {}
 
+
 def test_processing_results(stream_id: str, limit: int = 3):
     """Test getting processing results"""
     try:
-        response = requests.get(f"{BASE_URL}/video-streams/{stream_id}/results?limit={limit}")
+        response = requests.get(
+            f"{BASE_URL}/video-streams/{stream_id}/results?limit={limit}"
+        )
         results = response.json()
         print(f"[OK] Processing results for {stream_id} ({len(results)} results):")
 
         for result in results:
-            print(f"   Frame {result['frame_number']}: {result['person_count']} persons")
+            print(
+                f"   Frame {result['frame_number']}: {result['person_count']} persons"
+            )
             print(f"   Processing time: {result['processing_time_ms']:.1f}ms")
             print(f"   Zones analyzed: {len(result['zone_analysis']['zones'])}")
 
             # Show zone statuses
-            for zone_id, zone_data in result['zone_analysis']['zones'].items():
-                print(f"     Zone {zone_id}: {zone_data['status']} ({zone_data['person_count']} persons)")
+            for zone_id, zone_data in result["zone_analysis"]["zones"].items():
+                print(
+                    f"     Zone {zone_id}: {zone_data['status']} ({zone_data['person_count']} persons)"
+                )
 
         return results
     except Exception as e:
         print(f"[ERROR] Processing results failed: {e}")
         return []
 
+
 def test_zone_efficiency(stream_id: str, zone_id: int, minutes: int = 5):
     """Test zone efficiency calculation"""
     try:
-        response = requests.get(f"{BASE_URL}/video-streams/{stream_id}/zones/{zone_id}/efficiency?minutes={minutes}")
+        response = requests.get(
+            f"{BASE_URL}/video-streams/{stream_id}/zones/{zone_id}/efficiency?minutes={minutes}"
+        )
         efficiency = response.json()
         print(f"[OK] Zone {zone_id} efficiency (last {minutes} minutes):")
         print(f"   Efficiency: {efficiency['efficiency_percentage']:.1f}%")
@@ -160,6 +178,7 @@ def test_zone_efficiency(stream_id: str, zone_id: int, minutes: int = 5):
         print(f"[ERROR] Zone efficiency failed: {e}")
         return {}
 
+
 def test_system_statistics():
     """Test system statistics"""
     try:
@@ -167,19 +186,22 @@ def test_system_statistics():
         stats = response.json()
         print(f"[OK] System statistics:")
 
-        video_stats = stats.get('video_manager', {})
-        processing_stats = stats.get('video_processor', {})
+        video_stats = stats.get("video_manager", {})
+        processing_stats = stats.get("video_processor", {})
 
         print(f"   Active streams: {video_stats.get('active_streams', 0)}")
         print(f"   Total zones: {video_stats.get('total_zones', 0)}")
         print(f"   Frames processed: {processing_stats.get('frames_processed', 0)}")
         print(f"   Average FPS: {processing_stats.get('average_fps', 0):.1f}")
-        print(f"   Processing queue: {processing_stats.get('processing_queue_size', 0)}")
+        print(
+            f"   Processing queue: {processing_stats.get('processing_queue_size', 0)}"
+        )
 
         return stats
     except Exception as e:
         print(f"[ERROR] System statistics failed: {e}")
         return {}
+
 
 def test_update_stream(stream_id: str):
     """Test updating stream configuration"""
@@ -193,7 +215,7 @@ def test_update_stream(stream_id: str):
                 "x_max": 670,
                 "y_max": 590,
                 "zone_id": 1,
-                "name": "Updated Top Zone"
+                "name": "Updated Top Zone",
             },
             {
                 "x_min": 50,
@@ -201,18 +223,21 @@ def test_update_stream(stream_id: str):
                 "x_max": 670,
                 "y_max": 1230,
                 "zone_id": 2,
-                "name": "Updated Bottom Zone"
-            }
-        ]
+                "name": "Updated Bottom Zone",
+            },
+        ],
     }
 
     try:
-        response = requests.put(f"{BASE_URL}/video-streams/{stream_id}", json=update_data)
+        response = requests.put(
+            f"{BASE_URL}/video-streams/{stream_id}", json=update_data
+        )
         print(f"[OK] Stream updated: {response.json()}")
         return True
     except Exception as e:
         print(f"[ERROR] Stream update failed: {e}")
         return False
+
 
 def test_delete_stream(stream_id: str):
     """Test deleting stream"""
@@ -223,6 +248,7 @@ def test_delete_stream(stream_id: str):
     except Exception as e:
         print(f"[ERROR] Stream deletion failed: {e}")
         return False
+
 
 def main():
     """Run comprehensive video streaming tests"""
@@ -252,7 +278,7 @@ def main():
         return
 
     # Get first available stream for testing
-    test_stream_id = streams[0]['stream_id']
+    test_stream_id = streams[0]["stream_id"]
 
     # Wait for stream to start processing
     print(f"\n5. Waiting for stream {test_stream_id} to start...")
@@ -289,10 +315,11 @@ def main():
     # Test 13: Cleanup
     print(f"\n13. Cleaning Up Streams")
     for stream in streams:
-        test_delete_stream(stream['stream_id'])
+        test_delete_stream(stream["stream_id"])
 
     print("\nVideo Streaming Tests Completed!")
     print("=" * 50)
+
 
 if __name__ == "__main__":
     main()

@@ -1,13 +1,17 @@
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, delete, update
-from sqlalchemy.orm import selectinload
 from typing import List, Optional
+
+from sqlalchemy import delete, select, update
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.models.workstation import Workstation
 from app.models.zone import Zone
 from app.schemas.workstation import WorkstationCreate, WorkstationUpdate
 
-async def get_workstation(db: AsyncSession, workstation_id: int) -> Optional[Workstation]:
+
+async def get_workstation(
+    db: AsyncSession, workstation_id: int
+) -> Optional[Workstation]:
     """Get a single workstation by ID"""
     result = await db.execute(
         select(Workstation)
@@ -16,7 +20,10 @@ async def get_workstation(db: AsyncSession, workstation_id: int) -> Optional[Wor
     )
     return result.scalar_one_or_none()
 
-async def get_workstations(db: AsyncSession, skip: int = 0, limit: int = 100) -> List[Workstation]:
+
+async def get_workstations(
+    db: AsyncSession, skip: int = 0, limit: int = 100
+) -> List[Workstation]:
     """Get list of workstations with pagination"""
     result = await db.execute(
         select(Workstation)
@@ -27,7 +34,10 @@ async def get_workstations(db: AsyncSession, skip: int = 0, limit: int = 100) ->
     )
     return list(result.scalars().all())
 
-async def create_workstation(db: AsyncSession, workstation: WorkstationCreate) -> Workstation:
+
+async def create_workstation(
+    db: AsyncSession, workstation: WorkstationCreate
+) -> Workstation:
     """Create a new workstation"""
     db_workstation = Workstation(**workstation.model_dump())
     db.add(db_workstation)
@@ -35,10 +45,9 @@ async def create_workstation(db: AsyncSession, workstation: WorkstationCreate) -
     await db.refresh(db_workstation)
     return db_workstation
 
+
 async def update_workstation(
-    db: AsyncSession,
-    workstation_id: int,
-    workstation_update: WorkstationUpdate
+    db: AsyncSession, workstation_id: int, workstation_update: WorkstationUpdate
 ) -> Optional[Workstation]:
     """Update an existing workstation"""
     # Get existing workstation
@@ -59,6 +68,7 @@ async def update_workstation(
 
     return db_workstation
 
+
 async def delete_workstation(db: AsyncSession, workstation_id: int) -> bool:
     """Delete a workstation"""
     result = await db.execute(
@@ -66,6 +76,7 @@ async def delete_workstation(db: AsyncSession, workstation_id: int) -> bool:
     )
     await db.commit()
     return result.rowcount > 0
+
 
 async def get_workstations_count(db: AsyncSession) -> int:
     """Get total count of workstations"""

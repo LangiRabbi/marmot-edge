@@ -98,7 +98,7 @@ export function WorkstationDetailsModal({ open, onOpenChange, workstation, video
     }
 
     switch (videoConfig.type) {
-      case 'file':
+      case 'file': {
         // Check if blob URL is still valid, fallback to default if not
         const filePath = videoConfig.filePath;
         if (filePath && filePath.startsWith('blob:')) {
@@ -113,6 +113,7 @@ export function WorkstationDetailsModal({ open, onOpenChange, workstation, video
           src: filePath || "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
           sourceType: "file" as const
         };
+      }
       case 'rtsp':
         return {
           src: videoConfig.url || "",

@@ -2,16 +2,18 @@
 Video source management service for real-time streaming
 Handles RTSP, USB, IP cameras with auto-reconnect and resource management
 """
-import cv2
-import time
+
 import logging
-import threading
 import signal
 import sys
-from typing import Dict, List, Optional, Tuple, Any
-from queue import Queue, Empty
+import threading
+import time
 from dataclasses import dataclass
 from enum import Enum
+from queue import Empty, Queue
+from typing import Any, Dict, List, Optional, Tuple
+
+import cv2
 import numpy as np
 
 logger = logging.getLogger(__name__)
@@ -19,6 +21,7 @@ logger = logging.getLogger(__name__)
 
 class StreamStatus(Enum):
     """Stream connection status"""
+
     DISCONNECTED = "disconnected"
     CONNECTING = "connecting"
     CONNECTED = "connected"
@@ -29,6 +32,7 @@ class StreamStatus(Enum):
 @dataclass
 class StreamConfig:
     """Configuration for video stream"""
+
     stream_id: str
     source_url: str
     name: str
@@ -42,6 +46,7 @@ class StreamConfig:
 @dataclass
 class Rectangle:
     """Simple rectangle zone definition"""
+
     x_min: float
     y_min: float
     x_max: float
@@ -132,7 +137,9 @@ class VideoStreamWorker(threading.Thread):
 
     def _process_frames(self):
         """Process video frames with FPS control"""
-        frame_interval = 1.0 / self.config.target_fps if self.config.target_fps > 0 else 0
+        frame_interval = (
+            1.0 / self.config.target_fps if self.config.target_fps > 0 else 0
+        )
 
         while not self.stop_event.is_set() and self.cap.isOpened():
             ret, frame = self.cap.read()
@@ -162,13 +169,15 @@ class VideoStreamWorker(threading.Thread):
                 except Empty:
                     pass
 
-            self.frame_queue.put({
-                'frame': frame,
-                'timestamp': current_time,
-                'frame_number': self.frame_count,
-                'stream_id': self.config.stream_id,
-                'zones': self.zones
-            })
+            self.frame_queue.put(
+                {
+                    "frame": frame,
+                    "timestamp": current_time,
+                    "frame_number": self.frame_count,
+                    "stream_id": self.config.stream_id,
+                    "zones": self.zones,
+                }
+            )
 
     def _update_fps_tracking(self, current_time: float):
         """Update actual FPS calculation"""
@@ -185,14 +194,18 @@ class VideoStreamWorker(threading.Thread):
             if self.stop_event.is_set():
                 return
 
-            logger.info(f"Reconnecting {self.config.stream_id} in {delay}s (attempt {attempt + 1})")
+            logger.info(
+                f"Reconnecting {self.config.stream_id} in {delay}s (attempt {attempt + 1})"
+            )
             time.sleep(delay)
 
             if self._connect():
                 logger.info(f"Reconnected {self.config.stream_id} successfully")
                 return
 
-        logger.error(f"Failed to reconnect {self.config.stream_id} after {len(delays)} attempts")
+        logger.error(
+            f"Failed to reconnect {self.config.stream_id} after {len(delays)} attempts"
+        )
         self.status = StreamStatus.ERROR
 
     def _cleanup(self):
@@ -220,14 +233,14 @@ class VideoStreamWorker(threading.Thread):
     def get_status(self) -> Dict[str, Any]:
         """Get current stream status and metrics"""
         return {
-            'stream_id': self.config.stream_id,
-            'status': self.status.value,
-            'fps_actual': round(self.fps_actual, 2),
-            'fps_target': self.config.target_fps,
-            'frame_count': self.frame_count,
-            'error_count': self.error_count,
-            'queue_size': self.frame_queue.qsize(),
-            'zones_count': len(self.zones)
+            "stream_id": self.config.stream_id,
+            "status": self.status.value,
+            "fps_actual": round(self.fps_actual, 2),
+            "fps_target": self.config.target_fps,
+            "frame_count": self.frame_count,
+            "error_count": self.error_count,
+            "queue_size": self.frame_queue.qsize(),
+            "zones_count": len(self.zones),
         }
 
     def stop(self):
@@ -252,12 +265,13 @@ class VideoManager:
 
     def _setup_signal_handlers(self):
         """Setup signal handlers for graceful shutdown"""
+
         def signal_handler(signum, frame):
             logger.info(f"Received signal {signum}, initiating graceful shutdown...")
             self.shutdown()
             sys.exit(0)
 
-        signal.signal(signal.SIGINT, signal_handler)   # Ctrl+C
+        signal.signal(signal.SIGINT, signal_handler)  # Ctrl+C
         signal.signal(signal.SIGTERM, signal_handler)  # Docker stop
 
     def add_stream(self, config: StreamConfig, zones: List[Rectangle]) -> bool:
@@ -280,7 +294,9 @@ class VideoManager:
             return False
 
         if len(zones) > self.MAX_ZONES_PER_STREAM:
-            logger.error(f"Too many zones ({len(zones)}), max {self.MAX_ZONES_PER_STREAM}")
+            logger.error(
+                f"Too many zones ({len(zones)}), max {self.MAX_ZONES_PER_STREAM}"
+            )
             return False
 
         total_zones = sum(len(worker.zones) for worker in self.streams.values())
@@ -377,12 +393,12 @@ class VideoManager:
         total_zones = sum(len(worker.zones) for worker in self.streams.values())
 
         return {
-            'active_streams': len(self.streams),
-            'max_streams': self.MAX_STREAMS,
-            'total_zones': total_zones,
-            'max_total_zones': self.MAX_TOTAL_ZONES,
-            'running': self.running.is_set(),
-            'stream_details': self.get_all_status()
+            "active_streams": len(self.streams),
+            "max_streams": self.MAX_STREAMS,
+            "total_zones": total_zones,
+            "max_total_zones": self.MAX_TOTAL_ZONES,
+            "running": self.running.is_set(),
+            "stream_details": self.get_all_status(),
         }
 
 

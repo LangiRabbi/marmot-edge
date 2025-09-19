@@ -2,18 +2,16 @@
 Video streams API endpoints for managing real-time video sources
 Supports RTSP, USB, IP cameras with zone configuration
 """
-from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks
-from pydantic import BaseModel, Field
-from typing import List, Dict, Any, Optional
-from datetime import datetime
-import logging
 
-from ...services.video_service import (
-    get_video_manager,
-    StreamConfig,
-    Rectangle,
-    StreamStatus
-)
+import logging
+from datetime import datetime
+from typing import Any, Dict, List, Optional
+
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from pydantic import BaseModel, Field
+
+from ...services.video_service import (Rectangle, StreamConfig, StreamStatus,
+                                       get_video_manager)
 from ...workers.video_processor import get_video_processor
 
 logger = logging.getLogger(__name__)
@@ -24,6 +22,7 @@ router = APIRouter(prefix="/video-streams", tags=["video-streams"])
 # Pydantic models for API
 class RectangleCreate(BaseModel):
     """Rectangle zone definition for API"""
+
     x_min: float = Field(..., description="Left boundary")
     y_min: float = Field(..., description="Top boundary")
     x_max: float = Field(..., description="Right boundary")
@@ -34,17 +33,29 @@ class RectangleCreate(BaseModel):
 
 class StreamCreate(BaseModel):
     """Create video stream request"""
-    stream_id: str = Field(..., min_length=1, max_length=50, description="Unique stream identifier")
-    source_url: str = Field(..., description="Video source (RTSP URL, USB index, file path)")
-    name: str = Field(..., min_length=1, max_length=100, description="Human readable name")
-    stream_type: str = Field(..., pattern="^(rtsp|usb|ip|file)$", description="Stream type")
+
+    stream_id: str = Field(
+        ..., min_length=1, max_length=50, description="Unique stream identifier"
+    )
+    source_url: str = Field(
+        ..., description="Video source (RTSP URL, USB index, file path)"
+    )
+    name: str = Field(
+        ..., min_length=1, max_length=100, description="Human readable name"
+    )
+    stream_type: str = Field(
+        ..., pattern="^(rtsp|usb|ip|file)$", description="Stream type"
+    )
     target_fps: int = Field(15, ge=1, le=30, description="Target FPS")
     auto_reconnect: bool = Field(True, description="Enable auto-reconnect")
-    zones: List[RectangleCreate] = Field([], max_items=10, description="Rectangular zones (max 10)")
+    zones: List[RectangleCreate] = Field(
+        [], max_items=10, description="Rectangular zones (max 10)"
+    )
 
 
 class StreamUpdate(BaseModel):
     """Update video stream request"""
+
     name: Optional[str] = Field(None, min_length=1, max_length=100)
     target_fps: Optional[int] = Field(None, ge=1, le=30)
     auto_reconnect: Optional[bool] = None
@@ -53,6 +64,7 @@ class StreamUpdate(BaseModel):
 
 class StreamResponse(BaseModel):
     """Video stream response"""
+
     stream_id: str
     source_url: str
     name: str
@@ -70,6 +82,7 @@ class StreamResponse(BaseModel):
 
 class ProcessingResultResponse(BaseModel):
     """Processing result response"""
+
     stream_id: str
     timestamp: datetime
     frame_number: int
@@ -82,6 +95,7 @@ class ProcessingResultResponse(BaseModel):
 
 class EfficiencyResponse(BaseModel):
     """Zone efficiency response"""
+
     zone_id: int
     stream_id: str
     efficiency_percentage: float
@@ -111,7 +125,9 @@ async def create_stream(stream_data: StreamCreate, background_tasks: BackgroundT
 
         # Check if stream already exists
         if stream_data.stream_id in video_manager.streams:
-            raise HTTPException(status_code=400, detail=f"Stream {stream_data.stream_id} already exists")
+            raise HTTPException(
+                status_code=400, detail=f"Stream {stream_data.stream_id} already exists"
+            )
 
         # Create stream config
         config = StreamConfig(
@@ -120,7 +136,7 @@ async def create_stream(stream_data: StreamCreate, background_tasks: BackgroundT
             name=stream_data.name,
             stream_type=stream_data.stream_type,
             target_fps=stream_data.target_fps,
-            auto_reconnect=stream_data.auto_reconnect
+            auto_reconnect=stream_data.auto_reconnect,
         )
 
         # Create rectangle zones
@@ -132,7 +148,7 @@ async def create_stream(stream_data: StreamCreate, background_tasks: BackgroundT
                 x_max=zone_data.x_max,
                 y_max=zone_data.y_max,
                 zone_id=zone_data.zone_id,
-                name=zone_data.name
+                name=zone_data.name,
             )
             zones.append(rectangle)
 
@@ -147,7 +163,7 @@ async def create_stream(stream_data: StreamCreate, background_tasks: BackgroundT
             "message": f"Stream {stream_data.stream_id} created successfully",
             "stream_id": stream_data.stream_id,
             "zones_count": len(zones),
-            "status": "created"
+            "status": "created",
         }
 
     except HTTPException:
@@ -176,13 +192,13 @@ async def list_streams():
                 stream_type=worker.config.stream_type,
                 target_fps=worker.config.target_fps,
                 auto_reconnect=worker.config.auto_reconnect,
-                status=status_data.get('status', 'unknown'),
+                status=status_data.get("status", "unknown"),
                 zones_count=len(worker.zones),
                 created_at=datetime.utcnow(),  # TODO: Store actual creation time
-                fps_actual=status_data.get('fps_actual', 0.0),
-                frame_count=status_data.get('frame_count', 0),
-                error_count=status_data.get('error_count', 0),
-                queue_size=status_data.get('queue_size', 0)
+                fps_actual=status_data.get("fps_actual", 0.0),
+                frame_count=status_data.get("frame_count", 0),
+                error_count=status_data.get("error_count", 0),
+                queue_size=status_data.get("queue_size", 0),
             )
             streams.append(stream_response)
 
@@ -212,13 +228,13 @@ async def get_stream(stream_id: str):
             stream_type=worker.config.stream_type,
             target_fps=worker.config.target_fps,
             auto_reconnect=worker.config.auto_reconnect,
-            status=status_data.get('status', 'unknown'),
+            status=status_data.get("status", "unknown"),
             zones_count=len(worker.zones),
             created_at=datetime.utcnow(),
-            fps_actual=status_data.get('fps_actual', 0.0),
-            frame_count=status_data.get('frame_count', 0),
-            error_count=status_data.get('error_count', 0),
-            queue_size=status_data.get('queue_size', 0)
+            fps_actual=status_data.get("fps_actual", 0.0),
+            frame_count=status_data.get("frame_count", 0),
+            error_count=status_data.get("error_count", 0),
+            queue_size=status_data.get("queue_size", 0),
         )
 
     except Exception as e:
@@ -248,7 +264,9 @@ async def update_stream(stream_id: str, update_data: StreamUpdate):
         # Update zones if provided
         if update_data.zones is not None:
             if len(update_data.zones) > 10:
-                raise HTTPException(status_code=400, detail="Maximum 10 zones per stream")
+                raise HTTPException(
+                    status_code=400, detail="Maximum 10 zones per stream"
+                )
 
             new_zones = []
             for zone_data in update_data.zones:
@@ -258,7 +276,7 @@ async def update_stream(stream_id: str, update_data: StreamUpdate):
                     x_max=zone_data.x_max,
                     y_max=zone_data.y_max,
                     zone_id=zone_data.zone_id,
-                    name=zone_data.name
+                    name=zone_data.name,
                 )
                 new_zones.append(rectangle)
 
@@ -269,7 +287,7 @@ async def update_stream(stream_id: str, update_data: StreamUpdate):
         return {
             "message": f"Stream {stream_id} updated successfully",
             "stream_id": stream_id,
-            "zones_count": len(worker.zones)
+            "zones_count": len(worker.zones),
         }
 
     except HTTPException:
@@ -296,7 +314,7 @@ async def delete_stream(stream_id: str):
 
         return {
             "message": f"Stream {stream_id} deleted successfully",
-            "stream_id": stream_id
+            "stream_id": stream_id,
         }
 
     except HTTPException:
@@ -345,7 +363,7 @@ async def get_stream_results(stream_id: str, limit: int = 5):
                 trackings=result.trackings,
                 zone_analysis=result.zone_analysis,
                 processing_time_ms=result.processing_time_ms,
-                fps_current=result.fps_current
+                fps_current=result.fps_current,
             )
             responses.append(response)
 
@@ -356,7 +374,9 @@ async def get_stream_results(stream_id: str, limit: int = 5):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get("/{stream_id}/zones/{zone_id}/efficiency", response_model=EfficiencyResponse)
+@router.get(
+    "/{stream_id}/zones/{zone_id}/efficiency", response_model=EfficiencyResponse
+)
 async def get_zone_efficiency(stream_id: str, zone_id: int, minutes: int = 60):
     """Get efficiency metrics for specific zone"""
     video_processor = get_video_processor()
@@ -366,19 +386,21 @@ async def get_zone_efficiency(stream_id: str, zone_id: int, minutes: int = 60):
         raise HTTPException(status_code=404, detail=f"Stream {stream_id} not found")
 
     if minutes < 1 or minutes > 1440:  # Max 24 hours
-        raise HTTPException(status_code=400, detail="Minutes must be between 1 and 1440")
+        raise HTTPException(
+            status_code=400, detail="Minutes must be between 1 and 1440"
+        )
 
     try:
         efficiency = video_processor.get_zone_efficiency(stream_id, zone_id, minutes)
 
         return EfficiencyResponse(
-            zone_id=efficiency['zone_id'],
-            stream_id=efficiency['stream_id'],
-            efficiency_percentage=efficiency['efficiency_percentage'],
-            work_minutes=efficiency['work_minutes'],
-            idle_minutes=efficiency['idle_minutes'],
-            other_minutes=efficiency['other_minutes'],
-            total_minutes=efficiency['total_minutes']
+            zone_id=efficiency["zone_id"],
+            stream_id=efficiency["stream_id"],
+            efficiency_percentage=efficiency["efficiency_percentage"],
+            work_minutes=efficiency["work_minutes"],
+            idle_minutes=efficiency["idle_minutes"],
+            other_minutes=efficiency["other_minutes"],
+            total_minutes=efficiency["total_minutes"],
         )
 
     except Exception as e:
@@ -399,7 +421,7 @@ async def get_system_statistics():
         return {
             "video_manager": video_stats,
             "video_processor": processing_stats,
-            "timestamp": datetime.utcnow()
+            "timestamp": datetime.utcnow(),
         }
 
     except Exception as e:
@@ -420,10 +442,7 @@ async def shutdown_system():
 
         logger.info("Video processing system shutdown initiated")
 
-        return {
-            "message": "System shutdown initiated",
-            "timestamp": datetime.utcnow()
-        }
+        return {"message": "System shutdown initiated", "timestamp": datetime.utcnow()}
 
     except Exception as e:
         logger.error(f"Failed to shutdown system: {e}")
