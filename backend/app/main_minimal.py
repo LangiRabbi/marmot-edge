@@ -7,6 +7,7 @@ from app.api.v1 import workstations, zones
 
 # Load environment variables
 from dotenv import load_dotenv
+
 load_dotenv()
 
 # Create FastAPI app without lifespan for CI testing
