@@ -260,6 +260,77 @@ class VideoStreamService {
   async getStreamsByWorkstation(workstationId: number): Promise<VideoStream[]> {
     return this.getVideoStreams(workstationId);
   }
+
+  // Test RTSP connection
+  async testRtspConnection(rtspUrl: string): Promise<{ success: boolean; message: string }> {
+    try {
+      const response = await apiClient.post('/video-streams/test-rtsp', { rtsp_url: rtspUrl });
+      return response.data;
+    } catch (error) {
+      console.warn('Backend not available for RTSP test:', error);
+      // Mock response for development
+      if (rtspUrl.startsWith('rtsp://')) {
+        return { success: true, message: 'RTSP connection test successful (mocked)' };
+      } else {
+        return { success: false, message: 'Invalid RTSP URL format' };
+      }
+    }
+  }
+
+  // Generate video URL for frontend VideoPlayer
+  generateVideoUrl(stream: VideoStream): string {
+    switch (stream.source_type) {
+      case 'rtsp':
+        // RTSP streams are proxied through backend as HLS
+        return `${window.location.origin}/api/v1/video-streams/${stream.id}/hls`;
+      case 'usb':
+        // USB cameras use getUserMedia - return deviceId for frontend
+        return stream.source_url;
+      case 'file':
+        // File uploads - should be handled by frontend blob URL
+        return stream.source_url;
+      case 'ip':
+        // IP cameras direct stream
+        return stream.source_url;
+      default:
+        return '';
+    }
+  }
+
+  // Convert VideoSourceConfig to CreateVideoStreamRequest
+  convertFromVideoConfig(
+    workstationId: number,
+    workstationName: string,
+    videoConfig: any
+  ): CreateVideoStreamRequest {
+    let sourceType: 'rtsp' | 'usb' | 'ip' | 'file' = 'file';
+    let sourceUrl = '';
+
+    switch (videoConfig.type) {
+      case 'rtsp':
+        sourceType = 'rtsp';
+        sourceUrl = videoConfig.url || '';
+        break;
+      case 'usb':
+        sourceType = 'usb';
+        sourceUrl = videoConfig.usbDeviceId || '';
+        break;
+      case 'file':
+        sourceType = 'file';
+        sourceUrl = videoConfig.fileName || '';
+        break;
+      default:
+        sourceType = 'file';
+        sourceUrl = '';
+    }
+
+    return {
+      name: `${workstationName} Camera`,
+      workstation_id: workstationId,
+      source_type: sourceType,
+      source_url: sourceUrl
+    };
+  }
 }
 
 export const videoStreamService = new VideoStreamService();

@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import type { VideoSourceConfig } from "@/services/workstationService";
+import { videoStreamService } from "@/services/videoStreamService";
 
 interface AddWorkstationModalProps {
   open: boolean;
@@ -39,6 +40,16 @@ export function AddWorkstationModal({ open, onOpenChange, onAddWorkstation }: Ad
   const [showDevices, setShowDevices] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // USB Camera states
+  const [usbCameras, setUsbCameras] = useState<MediaDeviceInfo[]>([]);
+  const [isLoadingCameras, setIsLoadingCameras] = useState(false);
+  const [previewStream, setPreviewStream] = useState<MediaStream | null>(null);
+  const previewVideoRef = useRef<HTMLVideoElement>(null);
+
+  // RTSP testing states
+  const [isTestingRtsp, setIsTestingRtsp] = useState(false);
+  const [rtspTestResult, setRtspTestResult] = useState<{ success: boolean; message: string } | null>(null);
+
   // Reset file input when modal closes or opens
   useEffect(() => {
     if (!open) {
@@ -51,6 +62,14 @@ export function AddWorkstationModal({ open, onOpenChange, onAddWorkstation }: Ad
       setRtspUrl('');
       setSelectedUsbDevice('');
       setUploadedFile(null);
+      setShowDevices(false);
+      setDiscoveredDevices([]);
+      // Reset USB camera states
+      setUsbCameras([]);
+      stopCameraPreview();
+      // Reset RTSP test states
+      setIsTestingRtsp(false);
+      setRtspTestResult(null);
     }
   }, [open]);
 
@@ -60,8 +79,18 @@ export function AddWorkstationModal({ open, onOpenChange, onAddWorkstation }: Ad
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
+      stopCameraPreview();
     };
   }, []);
+
+  // Load USB cameras when USB source is selected
+  useEffect(() => {
+    if (videoSource === 'usb' && open) {
+      enumerateUsbCameras();
+    } else {
+      stopCameraPreview();
+    }
+  }, [videoSource, open]);
 
   // Function to reset file input manually
   const resetFileInput = () => {
@@ -69,6 +98,84 @@ export function AddWorkstationModal({ open, onOpenChange, onAddWorkstation }: Ad
       fileInputRef.current.value = '';
     }
     setUploadedFile(null);
+  };
+
+  // USB Camera functions
+  const enumerateUsbCameras = async () => {
+    setIsLoadingCameras(true);
+    try {
+      // Request permission first
+      await navigator.mediaDevices.getUserMedia({ video: true });
+
+      // Get all media devices
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const videoDevices = devices.filter(device => device.kind === 'videoinput');
+
+      setUsbCameras(videoDevices);
+      console.log('Found USB cameras:', videoDevices);
+    } catch (error) {
+      console.error('Failed to enumerate cameras:', error);
+      setUsbCameras([]);
+    } finally {
+      setIsLoadingCameras(false);
+    }
+  };
+
+  const startCameraPreview = async (deviceId: string) => {
+    try {
+      // Stop existing stream
+      if (previewStream) {
+        previewStream.getTracks().forEach(track => track.stop());
+      }
+
+      // Start new stream
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          deviceId: { exact: deviceId },
+          width: { ideal: 320 },
+          height: { ideal: 240 }
+        }
+      });
+
+      setPreviewStream(stream);
+
+      // Attach to video element
+      if (previewVideoRef.current) {
+        previewVideoRef.current.srcObject = stream;
+      }
+    } catch (error) {
+      console.error('Failed to start camera preview:', error);
+    }
+  };
+
+  const stopCameraPreview = () => {
+    if (previewStream) {
+      previewStream.getTracks().forEach(track => track.stop());
+      setPreviewStream(null);
+    }
+    if (previewVideoRef.current) {
+      previewVideoRef.current.srcObject = null;
+    }
+  };
+
+  // RTSP testing function
+  const testRtspConnection = async () => {
+    if (!rtspUrl.trim()) {
+      setRtspTestResult({ success: false, message: 'Please enter RTSP URL' });
+      return;
+    }
+
+    setIsTestingRtsp(true);
+    setRtspTestResult(null);
+
+    try {
+      const result = await videoStreamService.testRtspConnection(rtspUrl);
+      setRtspTestResult(result);
+    } catch (error) {
+      setRtspTestResult({ success: false, message: 'Connection test failed' });
+    } finally {
+      setIsTestingRtsp(false);
+    }
   };
 
 
@@ -267,31 +374,89 @@ export function AddWorkstationModal({ open, onOpenChange, onAddWorkstation }: Ad
                   type="button"
                   variant="outline"
                   size="sm"
+                  onClick={testRtspConnection}
+                  disabled={isTestingRtsp || !rtspUrl.trim()}
                   className="border-border hover:bg-muted text-foreground"
                 >
-                  Test Connection
+                  {isTestingRtsp ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      Testing...
+                    </>
+                  ) : (
+                    'Test Connection'
+                  )}
                 </Button>
+
+                {/* RTSP Test Result */}
+                {rtspTestResult && (
+                  <div className={`mt-3 p-3 rounded-md text-sm ${
+                    rtspTestResult.success
+                      ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
+                      : 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
+                  }`}>
+                    {rtspTestResult.message}
+                  </div>
+                )}
               </div>
             )}
 
             {/* USB Camera Configuration */}
             {videoSource === 'usb' && (
               <div className="space-y-3 p-4 bg-muted/30 rounded-lg border border-border">
-                <Label className="text-foreground font-medium">USB Camera Device</Label>
+                <div className="flex items-center justify-between">
+                  <Label className="text-foreground font-medium">USB Camera Device</Label>
+                  {isLoadingCameras && (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Loading cameras...
+                    </div>
+                  )}
+                </div>
+
                 <select
                   value={selectedUsbDevice}
-                  onChange={(e) => setSelectedUsbDevice(e.target.value)}
+                  onChange={(e) => {
+                    const deviceId = e.target.value;
+                    setSelectedUsbDevice(deviceId);
+                    if (deviceId) {
+                      startCameraPreview(deviceId);
+                    } else {
+                      stopCameraPreview();
+                    }
+                  }}
                   className="w-full p-2 bg-background/50 border border-border rounded-md text-foreground focus:border-primary focus:ring-1 focus:ring-primary/50"
+                  disabled={isLoadingCameras}
                 >
-                  <option value="">Select USB Camera...</option>
-                  <option value="device-1">Default Camera (videoinput)</option>
-                  <option value="device-2">USB Camera 2</option>
+                  <option value="">
+                    {isLoadingCameras ? 'Loading cameras...' : 'Select USB Camera...'}
+                  </option>
+                  {usbCameras.map((camera, index) => (
+                    <option key={camera.deviceId} value={camera.deviceId}>
+                      {camera.label || `Camera ${index + 1}`}
+                    </option>
+                  ))}
                 </select>
+
                 {selectedUsbDevice && (
                   <div className="mt-3">
-                    <div className="w-full h-32 bg-black/20 border border-border rounded-md flex items-center justify-center">
-                      <span className="text-muted-foreground text-sm">Camera Preview</span>
+                    <Label className="text-foreground font-medium text-sm">Camera Preview</Label>
+                    <div className="mt-2 w-full h-48 bg-black/20 border border-border rounded-md overflow-hidden">
+                      <video
+                        ref={previewVideoRef}
+                        autoPlay
+                        muted
+                        playsInline
+                        className="w-full h-full object-cover"
+                        style={{ transform: 'scaleX(-1)' }}
+                      />
                     </div>
+                  </div>
+                )}
+
+                {usbCameras.length === 0 && !isLoadingCameras && (
+                  <div className="text-sm text-muted-foreground bg-muted/50 p-3 rounded-md">
+                    No USB cameras detected. Please connect a camera and refresh.
                   </div>
                 )}
               </div>

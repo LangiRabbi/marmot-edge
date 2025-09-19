@@ -1,4 +1,5 @@
 import { apiClient } from './api';
+import { videoStreamService } from './videoStreamService';
 
 export interface VideoSourceConfig {
   type: 'rtsp' | 'usb' | 'file';
@@ -197,7 +198,24 @@ class WorkstationService {
   async createWorkstation(data: CreateWorkstationRequest): Promise<Workstation> {
     try {
       const response = await apiClient.post<Workstation>('/workstations/', data);
-      return response.data;
+      const workstation = response.data;
+
+      // Create associated video stream if video config provided
+      if (workstation.video_config) {
+        try {
+          const streamRequest = videoStreamService.convertFromVideoConfig(
+            workstation.id,
+            workstation.name,
+            workstation.video_config
+          );
+          await videoStreamService.createVideoStream(streamRequest);
+          console.log(`Video stream created for workstation ${workstation.id}`);
+        } catch (streamError) {
+          console.warn('Failed to create video stream:', streamError);
+        }
+      }
+
+      return workstation;
     } catch (error) {
       console.warn('Backend not available, using mock response:', error);
       const newWorkstation: Workstation = {
@@ -214,6 +232,22 @@ class WorkstationService {
       };
       mockWorkstations.push(newWorkstation);
       saveMockWorkstations(mockWorkstations);
+
+      // Create associated video stream for mock workstation
+      if (newWorkstation.video_config) {
+        try {
+          const streamRequest = videoStreamService.convertFromVideoConfig(
+            newWorkstation.id,
+            newWorkstation.name,
+            newWorkstation.video_config
+          );
+          await videoStreamService.createVideoStream(streamRequest);
+          console.log(`Mock video stream created for workstation ${newWorkstation.id}`);
+        } catch (streamError) {
+          console.warn('Failed to create mock video stream:', streamError);
+        }
+      }
+
       return newWorkstation;
     }
   }
