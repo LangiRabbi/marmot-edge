@@ -57,13 +57,7 @@ jobs:
 
     # SonarCloud Analysis
     - name: SonarCloud Scan
-      uses: SonarSource/sonarcloud-github-action@master
+      uses: SonarSource/sonarqube-scan-action@v5
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-      with:
-        args: >
-          -Dsonar.projectKey=LangiRabbi_marmot-edge
-          -Dsonar.organization=langirabbi
-          -Dsonar.python.coverage.reportPaths=backend/coverage.xml
-          -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
