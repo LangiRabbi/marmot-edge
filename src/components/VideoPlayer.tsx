@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import Hls from 'hls.js';
 import { Button } from '@/components/ui/button';
 import { Play, Pause, Volume2, VolumeX, Maximize } from 'lucide-react';
@@ -52,14 +52,14 @@ export function VideoPlayer({
     const handleLoadSuccess = () => {
       console.log('Video loaded successfully');
       setIsLoading(false);
-      onLoadSuccess?.();
+      if (onLoadSuccess) onLoadSuccess();
     };
 
     const handleLoadError = (errorMsg: string) => {
       console.error('Video load error:', errorMsg);
       setError(errorMsg);
       setIsLoading(false);
-      onLoadError?.(errorMsg);
+      if (onLoadError) onLoadError(errorMsg);
     };
 
     switch (sourceType) {
@@ -146,7 +146,7 @@ export function VideoPlayer({
         video.load();
       }
     };
-  }, [src, sourceType, width, height, onLoadError, onLoadSuccess]);
+  }, [src, sourceType]); // Remove callbacks from dependencies to prevent re-render loop
 
   // Handle play/pause
   const togglePlay = async () => {
