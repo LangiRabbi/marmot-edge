@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
+import { VideoPlayer } from "./VideoPlayer";
 import { useState } from "react";
 
 interface Zone {
@@ -51,6 +52,7 @@ export function WorkstationDetailsModal({ open, onOpenChange, workstation }: Wor
   const [zones, setZones] = useState<Zone[]>(initialZones);
   const [editingZone, setEditingZone] = useState<number | null>(null);
   const [editingName, setEditingName] = useState('');
+  const [showVideoPlayer, setShowVideoPlayer] = useState(false);
   
   const getStatusColor = () => {
     switch (workstation.status) {
@@ -177,13 +179,41 @@ export function WorkstationDetailsModal({ open, onOpenChange, workstation }: Wor
               <h3 className="text-lg font-semibold text-foreground">Live Camera Feed</h3>
             </div>
             
-            <div className="bg-muted/30 rounded-lg p-8 text-center border border-border">
-              <div className="w-20 h-20 mx-auto mb-4 bg-muted rounded-full flex items-center justify-center">
-                <Camera className="h-8 w-8 text-muted-foreground" />
+            {showVideoPlayer ? (
+              <div className="bg-black rounded-lg border border-border overflow-hidden">
+                <VideoPlayer
+                  src="https://demo.unified-streaming.com/k8s/features/stable/video/tears-of-steel/tears-of-steel.ism/.m3u8"
+                  sourceType="hls"
+                  width={400}
+                  height={300}
+                  autoPlay={true}
+                  controls={true}
+                  className="w-full"
+                  onLoadSuccess={() => {
+                    toast({
+                      title: "Camera Connected",
+                      description: "Live feed is now active.",
+                    });
+                  }}
+                  onLoadError={(error) => {
+                    toast({
+                      title: "Connection Error",
+                      description: error,
+                      variant: "destructive",
+                    });
+                  }}
+                />
               </div>
-              <p className="text-foreground font-medium">Camera Feed Active</p>
-              <p className="text-sm text-muted-foreground">Resolution: 1920x1080 • 30 FPS</p>
-            </div>
+            ) : (
+              <div className="bg-muted/30 rounded-lg p-8 text-center border border-border cursor-pointer hover:bg-muted/40 transition-colors"
+                   onClick={() => setShowVideoPlayer(true)}>
+                <div className="w-20 h-20 mx-auto mb-4 bg-muted rounded-full flex items-center justify-center">
+                  <Camera className="h-8 w-8 text-muted-foreground" />
+                </div>
+                <p className="text-foreground font-medium">Click to Start Camera Feed</p>
+                <p className="text-sm text-muted-foreground">Resolution: 1920x1080 • 30 FPS</p>
+              </div>
+            )}
 
             {/* Stats Grid */}
             <div className="grid grid-cols-3 gap-4 mt-6">
