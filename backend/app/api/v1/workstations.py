@@ -5,8 +5,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.crud import workstation as workstation_crud
 from app.database import get_db
-from app.schemas.workstation import (WorkstationCreate, WorkstationResponse,
-                                     WorkstationUpdate, WorkstationWithZones)
+from app.schemas.workstation import (
+    WorkstationCreate,
+    WorkstationResponse,
+    WorkstationUpdate,
+    WorkstationWithZones,
+)
 
 router = APIRouter()
 

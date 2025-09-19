@@ -47,7 +47,8 @@
       "Bash(start http://localhost:8083)",
       "Bash(gh run list:*)",
       "Bash(gh run view:*)",
-      "Bash(npm run lint)"
+      "Bash(npm run lint)",
+      "Bash(npm uninstall:*)"
     ],
     "deny": [],
     "ask": []

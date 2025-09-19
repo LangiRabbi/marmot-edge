@@ -10,8 +10,12 @@ from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import BaseModel, Field
 
-from ...services.video_service import (Rectangle, StreamConfig, StreamStatus,
-                                       get_video_manager)
+from ...services.video_service import (
+    Rectangle,
+    StreamConfig,
+    StreamStatus,
+    get_video_manager,
+)
 from ...workers.video_processor import get_video_processor
 
 logger = logging.getLogger(__name__)

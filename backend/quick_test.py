@@ -14,8 +14,7 @@ def test_imports():
     print("Testing imports...")
 
     try:
-        from app.services.video_service import (Rectangle, StreamConfig,
-                                                VideoManager)
+        from app.services.video_service import Rectangle, StreamConfig, VideoManager
 
         print("[OK] Video service imports")
     except Exception as e:
@@ -23,8 +22,7 @@ def test_imports():
         return False
 
     try:
-        from app.workers.video_processor import (RectangleZoneAnalyzer,
-                                                 VideoProcessor)
+        from app.workers.video_processor import RectangleZoneAnalyzer, VideoProcessor
 
         print("[OK] Video processor imports")
     except Exception as e:
@@ -55,8 +53,7 @@ def test_basic_functionality():
     print("\nTesting basic functionality...")
 
     try:
-        from app.services.video_service import (Rectangle, StreamConfig,
-                                                VideoManager)
+        from app.services.video_service import Rectangle, StreamConfig, VideoManager
 
         # Create video manager
         manager = VideoManager()

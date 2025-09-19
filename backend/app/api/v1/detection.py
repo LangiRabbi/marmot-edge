@@ -6,8 +6,7 @@ import time
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from fastapi import (APIRouter, BackgroundTasks, Depends, File, HTTPException,
-                     UploadFile)
+from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, UploadFile
 from sqlalchemy.orm import Session
 
 from app.crud.workstation import get_workstations
@@ -15,8 +14,7 @@ from app.crud.zone import get_zones_by_workstation
 from app.database import get_db
 from app.models.detection import Detection, TrackingSession
 from app.schemas.detection import DetectionResponse, TrackingAnalysisResponse
-from app.services.yolo_service import (YOLOTrackingService,
-                                       get_yolo_tracking_service)
+from app.services.yolo_service import YOLOTrackingService, get_yolo_tracking_service
 from app.services.zone_analyzer import ZoneAnalyzer, get_zone_analyzer
 
 router = APIRouter()
