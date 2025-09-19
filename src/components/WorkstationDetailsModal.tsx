@@ -17,6 +17,7 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { VideoPlayer } from "./VideoPlayer";
 import { useState } from "react";
+import type { VideoSourceConfig } from "@/services/workstationService";
 
 interface Zone {
   id: number;
@@ -34,6 +35,7 @@ interface WorkstationDetailsModalProps {
     efficiency: number;
     lastActivity: string;
   };
+  videoConfig?: VideoSourceConfig;
 }
 
 const initialZones: Zone[] = [
@@ -47,12 +49,46 @@ const initialZones: Zone[] = [
   { id: 8, name: 'Final Assembly', status: 'Work' },
 ];
 
-export function WorkstationDetailsModal({ open, onOpenChange, workstation }: WorkstationDetailsModalProps) {
+export function WorkstationDetailsModal({ open, onOpenChange, workstation, videoConfig }: WorkstationDetailsModalProps) {
   const { toast } = useToast();
   const [zones, setZones] = useState<Zone[]>(initialZones);
   const [editingZone, setEditingZone] = useState<number | null>(null);
   const [editingName, setEditingName] = useState('');
   const [showVideoPlayer, setShowVideoPlayer] = useState(false);
+
+  // Get video source URL and type based on config
+  const getVideoSource = () => {
+    if (!videoConfig) {
+      // Default fallback video
+      return {
+        src: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
+        sourceType: "file" as const
+      };
+    }
+
+    switch (videoConfig.type) {
+      case 'file':
+        return {
+          src: videoConfig.filePath || "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
+          sourceType: "file" as const
+        };
+      case 'rtsp':
+        return {
+          src: videoConfig.url || "",
+          sourceType: "rtsp" as const
+        };
+      case 'usb':
+        return {
+          src: videoConfig.usbDeviceId || "",
+          sourceType: "usb" as const
+        };
+      default:
+        return {
+          src: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
+          sourceType: "file" as const
+        };
+    }
+  };
   
   const getStatusColor = () => {
     switch (workstation.status) {
@@ -182,8 +218,8 @@ export function WorkstationDetailsModal({ open, onOpenChange, workstation }: Wor
             {showVideoPlayer ? (
               <div className="bg-black rounded-lg border border-border overflow-hidden">
                 <VideoPlayer
-                  src="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4"
-                  sourceType="file"
+                  src={getVideoSource().src}
+                  sourceType={getVideoSource().sourceType}
                   width={400}
                   height={300}
                   autoPlay={true}

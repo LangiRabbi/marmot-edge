@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Loader2, Search, Monitor, Camera, Video, Upload } from "lucide-react";
 import {
@@ -11,13 +11,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-
-interface VideoSourceConfig {
-  type: 'rtsp' | 'usb' | 'file';
-  url?: string;
-  usbDeviceId?: string;
-  fileName?: string;
-}
+import type { VideoSourceConfig } from "@/services/workstationService";
 
 interface AddWorkstationModalProps {
   open: boolean;
@@ -43,6 +37,7 @@ export function AddWorkstationModal({ open, onOpenChange, onAddWorkstation }: Ad
   const [isScanning, setIsScanning] = useState(false);
   const [discoveredDevices, setDiscoveredDevices] = useState<typeof mockDevices>([]);
   const [showDevices, setShowDevices] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -62,7 +57,8 @@ export function AddWorkstationModal({ open, onOpenChange, onAddWorkstation }: Ad
         type: videoSource,
         url: videoSource === 'rtsp' ? rtspUrl : undefined,
         usbDeviceId: videoSource === 'usb' ? selectedUsbDevice : undefined,
-        fileName: videoSource === 'file' ? uploadedFile?.name : undefined
+        fileName: videoSource === 'file' ? uploadedFile?.name : undefined,
+        filePath: videoSource === 'file' && uploadedFile ? URL.createObjectURL(uploadedFile) : undefined
       };
 
       onAddWorkstation(formData.name.trim(), formData.ipAddress.trim(), videoConfig);
@@ -275,11 +271,7 @@ export function AddWorkstationModal({ open, onOpenChange, onAddWorkstation }: Ad
                 </Label>
                 <div className="relative">
                   <input
-                    ref={(input) => {
-                      if (input) {
-                        input.onclick = null; // Clear any existing listeners
-                      }
-                    }}
+                    ref={fileInputRef}
                     type="file"
                     accept=".mp4,.webm,.mov"
                     onChange={(e) => setUploadedFile(e.target.files?.[0] || null)}
@@ -288,12 +280,7 @@ export function AddWorkstationModal({ open, onOpenChange, onAddWorkstation }: Ad
                   />
                   <Button
                     type="button"
-                    onClick={() => {
-                      const input = document.querySelector('input[type="file"][accept*=".mp4"]') as HTMLInputElement;
-                      if (input) {
-                        input.click();
-                      }
-                    }}
+                    onClick={() => fileInputRef.current?.click()}
                     className="inline-flex items-center justify-center px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/90 rounded-md text-sm font-medium"
                   >
                     <Upload className="h-4 w-4 mr-2" />

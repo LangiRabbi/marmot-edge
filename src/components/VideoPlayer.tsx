@@ -49,13 +49,18 @@ export function VideoPlayer({
     setIsLoading(true);
     setError(null);
 
+    // Create stable references to prevent cleanup errors
+    let isMounted = true;
+
     const handleLoadSuccess = () => {
+      if (!isMounted) return; // Prevent calls after cleanup
       console.log('Video loaded successfully');
       setIsLoading(false);
       if (onLoadSuccess) onLoadSuccess();
     };
 
     const handleLoadError = (errorMsg: string) => {
+      if (!isMounted) return; // Prevent calls after cleanup
       console.error('Video load error:', errorMsg);
       setError(errorMsg);
       setIsLoading(false);
@@ -128,6 +133,7 @@ export function VideoPlayer({
 
     return () => {
       console.log('Cleaning up video player');
+      isMounted = false; // Prevent further callbacks
       cleanupHls();
       if (video) {
         // Remove event listeners

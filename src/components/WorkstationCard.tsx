@@ -21,6 +21,7 @@ import {
 import { WorkstationDetailsModal } from "./WorkstationDetailsModal";
 import { EditWorkstationModal } from "./EditWorkstationModal";
 import { useToast } from "@/hooks/use-toast";
+import type { VideoSourceConfig } from "@/services/workstationService";
 
 interface WorkstationCardProps {
   id: string;
@@ -29,17 +30,19 @@ interface WorkstationCardProps {
   peopleCount: number;
   efficiency: number;
   lastActivity: string;
+  videoConfig?: VideoSourceConfig;
   onEdit?: (id: string, newName: string) => void;
   onRemove?: (id: string) => void;
 }
 
-export function WorkstationCard({ 
+export function WorkstationCard({
   id,
-  name, 
-  status, 
-  peopleCount, 
-  efficiency, 
+  name,
+  status,
+  peopleCount,
+  efficiency,
   lastActivity,
+  videoConfig,
   onEdit,
   onRemove
 }: WorkstationCardProps) {
@@ -182,6 +185,7 @@ export function WorkstationCard({
         open={showDetailsModal}
         onOpenChange={setShowDetailsModal}
         workstation={{ name, status, peopleCount, efficiency, lastActivity }}
+        videoConfig={videoConfig}
       />
 
       <EditWorkstationModal

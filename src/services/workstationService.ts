@@ -1,5 +1,13 @@
 import { apiClient } from './api';
 
+export interface VideoSourceConfig {
+  type: 'rtsp' | 'usb' | 'file';
+  url?: string;
+  usbDeviceId?: string;
+  fileName?: string;
+  filePath?: string; // For storing file uploads
+}
+
 export interface Workstation {
   id: number;
   name: string;
@@ -10,18 +18,21 @@ export interface Workstation {
   last_activity: string;
   created_at: string;
   updated_at: string;
+  video_config?: VideoSourceConfig;
 }
 
 export interface CreateWorkstationRequest {
   name: string;
   location: string;
   status?: 'online' | 'offline' | 'alert';
+  video_config?: VideoSourceConfig;
 }
 
 export interface UpdateWorkstationRequest {
   name?: string;
   location?: string;
   status?: 'online' | 'offline' | 'alert';
+  video_config?: VideoSourceConfig;
 }
 
 // Mock data for development when backend is not available
@@ -127,7 +138,8 @@ class WorkstationService {
         efficiency: 0,
         last_activity: 'just now',
         created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
+        video_config: data.video_config
       };
       mockWorkstations.push(newWorkstation);
       saveMockWorkstations(mockWorkstations);

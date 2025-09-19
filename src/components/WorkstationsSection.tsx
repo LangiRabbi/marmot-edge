@@ -5,7 +5,7 @@ import { AddWorkstationCard } from "./AddWorkstationCard";
 import { AddWorkstationModal } from "./AddWorkstationModal";
 import { useToast } from "@/hooks/use-toast";
 import { workstationService } from "@/services/workstationService";
-import type { Workstation } from "@/services/workstationService";
+import type { Workstation, VideoSourceConfig } from "@/services/workstationService";
 
 export function WorkstationsSection() {
   const [showAddModal, setShowAddModal] = useState(false);
@@ -20,7 +20,7 @@ export function WorkstationsSection() {
 
   // Create workstation mutation
   const createMutation = useMutation({
-    mutationFn: (data: { name: string; location: string; status?: 'online' | 'offline' | 'alert' }) =>
+    mutationFn: (data: { name: string; location: string; status?: 'online' | 'offline' | 'alert'; video_config?: VideoSourceConfig }) =>
       workstationService.createWorkstation(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['workstations'] });
@@ -81,11 +81,12 @@ export function WorkstationsSection() {
     }
   });
 
-  const handleAddWorkstation = (name: string, ipAddress: string, videoConfig?: any) => {
+  const handleAddWorkstation = (name: string, ipAddress: string, videoConfig?: VideoSourceConfig) => {
     createMutation.mutate({
       name,
       location: ipAddress || 'N/A', // Use ipAddress as location for now
-      status: 'online'
+      status: 'online',
+      video_config: videoConfig
     });
   };
 
@@ -145,6 +146,7 @@ export function WorkstationsSection() {
             peopleCount={workstation.people_count}
             efficiency={workstation.efficiency}
             lastActivity={workstation.last_activity}
+            videoConfig={workstation.video_config}
             onEdit={handleEditWorkstation}
             onRemove={handleRemoveWorkstation}
           />
