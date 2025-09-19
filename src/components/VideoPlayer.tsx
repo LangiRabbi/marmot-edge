@@ -2,10 +2,12 @@ import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react'
 import Hls from 'hls.js';
 import { Button } from '@/components/ui/button';
 import { Play, Pause, Volume2, VolumeX, Maximize } from 'lucide-react';
+import { VideoCanvasOverlay, Zone } from './VideoCanvasOverlay';
 
 interface VideoPlayerProps {
   src?: string;
   sourceType: 'rtsp' | 'usb' | 'file' | 'hls';
+  fallbackSrc?: string;
   width?: number;
   height?: number;
   autoPlay?: boolean;
@@ -13,18 +15,33 @@ interface VideoPlayerProps {
   className?: string;
   onLoadError?: (error: string) => void;
   onLoadSuccess?: () => void;
+  // Zone management props
+  zones?: Zone[];
+  onZonesChange?: (zones: Zone[]) => void;
+  showZoneOverlay?: boolean;
+  isDrawingMode?: boolean;
+  onDrawingModeChange?: (mode: boolean) => void;
+  maxZones?: number;
 }
 
 export function VideoPlayer({
   src,
   sourceType,
+  fallbackSrc,
   width = 500,
   height = 500,
   autoPlay = false,
   controls = true,
   className = "",
   onLoadError,
-  onLoadSuccess
+  onLoadSuccess,
+  // Zone management props
+  zones = [],
+  onZonesChange,
+  showZoneOverlay = false,
+  isDrawingMode = false,
+  onDrawingModeChange,
+  maxZones = 10
 }: VideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<Hls | null>(null);
@@ -32,6 +49,8 @@ export function VideoPlayer({
   const [isMuted, setIsMuted] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [usingFallback, setUsingFallback] = useState(false);
+  const [currentSrc, setCurrentSrc] = useState(src);
 
   // Cleanup HLS instance
   const cleanupHls = () => {
@@ -41,10 +60,17 @@ export function VideoPlayer({
     }
   };
 
+  // Reset fallback state when src changes
+  useEffect(() => {
+    setCurrentSrc(src);
+    setUsingFallback(false);
+    setError(null);
+  }, [src]);
+
   // Initialize video source based on type
   useEffect(() => {
     const video = videoRef.current;
-    if (!video || !src) return;
+    if (!video || !currentSrc) return;
 
     setIsLoading(true);
     setError(null);
@@ -62,6 +88,16 @@ export function VideoPlayer({
     const handleLoadError = (errorMsg: string) => {
       if (!isMounted) return; // Prevent calls after cleanup
       console.error('Video load error:', errorMsg);
+
+      // Try fallback if we have one and haven't used it yet
+      if (fallbackSrc && !usingFallback && currentSrc !== fallbackSrc) {
+        console.log('Trying fallback video source:', fallbackSrc);
+        setUsingFallback(true);
+        setCurrentSrc(fallbackSrc);
+        setError(null);
+        return; // Don't set error state, let it try fallback
+      }
+
       setError(errorMsg);
       setIsLoading(false);
       if (onLoadError) onLoadError(errorMsg);
@@ -79,7 +115,7 @@ export function VideoPlayer({
             backBufferLength: 90
           });
 
-          hlsRef.current.loadSource(src);
+          hlsRef.current.loadSource(currentSrc);
           hlsRef.current.attachMedia(video);
 
           hlsRef.current.on(Hls.Events.MANIFEST_PARSED, handleLoadSuccess);
@@ -90,7 +126,7 @@ export function VideoPlayer({
           });
         } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
           // Native HLS support (Safari)
-          video.src = src;
+          video.src = currentSrc;
           video.addEventListener('loadedmetadata', handleLoadSuccess);
           video.addEventListener('error', () => handleLoadError('Failed to load HLS stream'));
         } else {
@@ -103,7 +139,7 @@ export function VideoPlayer({
         // USB Camera using getUserMedia
         navigator.mediaDevices.getUserMedia({
           video: {
-            deviceId: src ? { exact: src } : undefined,
+            deviceId: currentSrc ? { exact: currentSrc } : undefined,
             width: { ideal: width },
             height: { ideal: height }
           },
@@ -121,7 +157,7 @@ export function VideoPlayer({
 
       case 'file': {
         // Regular video file
-        video.src = src;
+        video.src = currentSrc || '';
         video.addEventListener('loadedmetadata', handleLoadSuccess);
         video.addEventListener('error', () => handleLoadError('Failed to load video file'));
         break;
@@ -152,7 +188,7 @@ export function VideoPlayer({
         video.load();
       }
     };
-  }, [src, sourceType]); // Remove callbacks from dependencies to prevent re-render loop
+  }, [currentSrc, sourceType]); // React to currentSrc changes for fallback functionality
 
   // Handle play/pause
   const togglePlay = async () => {
@@ -224,9 +260,23 @@ export function VideoPlayer({
         </div>
       )}
 
+      {/* Zone Overlay */}
+      {showZoneOverlay && onZonesChange && (
+        <VideoCanvasOverlay
+          key={`overlay-${showZoneOverlay}`}
+          width={width}
+          height={height}
+          zones={zones}
+          onZonesChange={onZonesChange}
+          isDrawingMode={isDrawingMode}
+          onDrawingModeChange={onDrawingModeChange || (() => {})}
+          maxZones={maxZones}
+        />
+      )}
+
       {/* Custom Controls */}
       {controls && !error && (
-        <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white p-4">
+        <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white p-4 z-20">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
               <Button

@@ -7,11 +7,13 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://username:password@localhost:5432/marmot_industrial")
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./marmot_industrial.db")
 
 # Convert to async URL if needed
 if DATABASE_URL.startswith("postgresql://"):
     ASYNC_DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://")
+elif DATABASE_URL.startswith("sqlite:///"):
+    ASYNC_DATABASE_URL = DATABASE_URL.replace("sqlite:///", "sqlite+aiosqlite:///")
 else:
     ASYNC_DATABASE_URL = DATABASE_URL
 

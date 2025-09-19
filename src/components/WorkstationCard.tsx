@@ -184,7 +184,7 @@ export function WorkstationCard({
       <WorkstationDetailsModal
         open={showDetailsModal}
         onOpenChange={setShowDetailsModal}
-        workstation={{ name, status, peopleCount, efficiency, lastActivity }}
+        workstation={{ id: parseInt(id), name, status, peopleCount, efficiency, lastActivity }}
         videoConfig={videoConfig}
       />
 

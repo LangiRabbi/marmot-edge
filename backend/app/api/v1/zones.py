@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import List
+from typing import List, Optional
 
 from app.database import get_db
 from app.schemas.zone import ZoneCreate, ZoneUpdate, ZoneResponse
@@ -13,7 +13,7 @@ router = APIRouter()
 async def read_zones(
     skip: int = Query(0, ge=0, description="Number of records to skip"),
     limit: int = Query(100, ge=1, le=1000, description="Maximum number of records to return"),
-    workstation_id: int = Query(None, description="Filter zones by workstation ID"),
+    workstation_id: Optional[int] = Query(None, description="Filter zones by workstation ID"),
     db: AsyncSession = Depends(get_db)
 ):
     """

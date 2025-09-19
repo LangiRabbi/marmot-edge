@@ -72,7 +72,10 @@ app.add_middleware(
     allow_origins=[
         os.getenv("FRONTEND_URL", "http://localhost:8080"),
         "http://localhost:3000",  # Backup for development
-        "http://localhost:8080"   # Current frontend port
+        "http://localhost:8080",  # Original port
+        "http://localhost:8081",  # Alternative port 1
+        "http://localhost:8082",  # Alternative port 2
+        "http://localhost:8083"   # Current frontend port
     ],
     allow_credentials=True,
     allow_methods=["*"],

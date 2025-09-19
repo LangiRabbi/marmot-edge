@@ -4,31 +4,56 @@ export interface Zone {
   id: number;
   name: string;
   workstation_id: number;
-  x1: number;
-  y1: number;
-  x2: number;
-  y2: number;
+  coordinates: {
+    points?: number[][];
+    x?: number;
+    y?: number;
+    width?: number;
+    height?: number;
+  };
+  is_active: boolean;
+  color: string;
+  person_count: number;
   status: 'work' | 'idle' | 'other';
-  people_count: number;
   created_at: string;
-  updated_at: string;
+  updated_at?: string;
+}
+
+// Frontend-specific zone interface for canvas overlay
+export interface CanvasZone {
+  id: number;
+  name: string;
+  x: number; // percentage 0-100
+  y: number; // percentage 0-100
+  width: number; // percentage 0-100
+  height: number; // percentage 0-100
+  color: string;
+  status: 'Work' | 'Idle' | 'Other';
 }
 
 export interface CreateZoneRequest {
   name: string;
   workstation_id: number;
-  x1: number;
-  y1: number;
-  x2: number;
-  y2: number;
+  coordinates: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  };
+  is_active?: boolean;
+  color: string;
 }
 
 export interface UpdateZoneRequest {
   name?: string;
-  x1?: number;
-  y1?: number;
-  x2?: number;
-  y2?: number;
+  coordinates?: {
+    x?: number;
+    y?: number;
+    width?: number;
+    height?: number;
+  };
+  is_active?: boolean;
+  color?: string;
 }
 
 // Mock data for development when backend is not available
@@ -37,38 +62,47 @@ const mockZones: Zone[] = [
     id: 1,
     name: 'Assembly Area',
     workstation_id: 1,
-    x1: 100,
-    y1: 100,
-    x2: 400,
-    y2: 300,
+    coordinates: { x: 20, y: 20, width: 30, height: 25 },
+    is_active: true,
+    color: '#3B82F6',
     status: 'work',
-    people_count: 2,
+    person_count: 2,
     created_at: '2025-09-17T10:00:00Z',
     updated_at: '2025-09-18T20:49:00Z'
   },
   {
     id: 2,
-    name: 'Quality Check Zone',
-    workstation_id: 2,
-    x1: 50,
-    y1: 50,
-    x2: 350,
-    y2: 250,
+    name: 'Quality Control',
+    workstation_id: 1,
+    coordinates: { x: 55, y: 20, width: 25, height: 20 },
+    is_active: true,
+    color: '#10B981',
     status: 'idle',
-    people_count: 0,
+    person_count: 0,
     created_at: '2025-09-17T10:00:00Z',
     updated_at: '2025-09-18T20:14:00Z'
   },
   {
     id: 3,
-    name: 'Packaging Zone A',
-    workstation_id: 3,
-    x1: 75,
-    y1: 75,
-    x2: 375,
-    y2: 275,
+    name: 'Packaging Station',
+    workstation_id: 1,
+    coordinates: { x: 20, y: 50, width: 28, height: 30 },
+    is_active: true,
+    color: '#F59E0B',
     status: 'other',
-    people_count: 3,
+    person_count: 3,
+    created_at: '2025-09-17T10:00:00Z',
+    updated_at: '2025-09-18T20:48:00Z'
+  },
+  {
+    id: 4,
+    name: 'Final Inspection',
+    workstation_id: 2,
+    coordinates: { x: 30, y: 30, width: 25, height: 25 },
+    is_active: true,
+    color: '#8B5CF6',
+    status: 'work',
+    person_count: 1,
     created_at: '2025-09-17T10:00:00Z',
     updated_at: '2025-09-18T20:48:00Z'
   }
@@ -114,12 +148,11 @@ class ZoneService {
         id: Math.max(...mockZones.map(z => z.id)) + 1,
         name: data.name,
         workstation_id: data.workstation_id,
-        x1: data.x1,
-        y1: data.y1,
-        x2: data.x2,
-        y2: data.y2,
+        coordinates: data.coordinates,
+        is_active: data.is_active ?? true,
+        color: data.color,
         status: 'idle',
-        people_count: 0,
+        person_count: 0,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       };
@@ -142,6 +175,7 @@ class ZoneService {
       mockZones[index] = {
         ...mockZones[index],
         ...data,
+        coordinates: data.coordinates ? { ...mockZones[index].coordinates, ...data.coordinates } : mockZones[index].coordinates,
         updated_at: new Date().toISOString()
       };
       return mockZones[index];
@@ -163,6 +197,67 @@ class ZoneService {
 
   async getZonesByWorkstation(workstationId: number): Promise<Zone[]> {
     return this.getZones(workstationId);
+  }
+
+  // Utility methods for converting between backend and frontend formats
+  convertToCanvasZone(zone: Zone): CanvasZone {
+    const coords = zone.coordinates;
+    return {
+      id: zone.id,
+      name: zone.name,
+      x: coords.x || 0,
+      y: coords.y || 0,
+      width: coords.width || 10,
+      height: coords.height || 10,
+      color: zone.color,
+      status: this.mapStatusToCanvas(zone.status)
+    };
+  }
+
+  convertFromCanvasZone(canvasZone: CanvasZone, workstationId: number): CreateZoneRequest {
+    return {
+      name: canvasZone.name,
+      workstation_id: workstationId,
+      coordinates: {
+        x: canvasZone.x,
+        y: canvasZone.y,
+        width: canvasZone.width,
+        height: canvasZone.height
+      },
+      color: canvasZone.color,
+      is_active: true
+    };
+  }
+
+  convertFromCanvasZoneUpdate(canvasZone: CanvasZone): UpdateZoneRequest {
+    return {
+      name: canvasZone.name,
+      coordinates: {
+        x: canvasZone.x,
+        y: canvasZone.y,
+        width: canvasZone.width,
+        height: canvasZone.height
+      },
+      color: canvasZone.color
+    };
+  }
+
+  private mapStatusToCanvas(status: 'work' | 'idle' | 'other'): 'Work' | 'Idle' | 'Other' {
+    switch (status) {
+      case 'work': return 'Work';
+      case 'idle': return 'Idle';
+      case 'other': return 'Other';
+      default: return 'Idle';
+    }
+  }
+
+  private mapStatusFromCanvas(status: 'Work' | 'Idle' | 'Other'): 'work' | 'idle' | 'other' {
+    switch (status) {
+      case 'Work': return 'work';
+      case 'Idle': return 'idle';
+      case 'Other': return 'other';
+      default: return 'idle';
+    }
   }
 }
 

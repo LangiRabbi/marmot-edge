@@ -99,8 +99,23 @@ let mockWorkstations = getMockWorkstations();
 class WorkstationService {
   async getWorkstations(): Promise<Workstation[]> {
     try {
-      const response = await apiClient.get<Workstation[]>('/workstations/');
-      return response.data;
+      const response = await apiClient.get<any[]>('/workstations/');
+
+      // Transform backend data to frontend interface
+      const transformedData = response.data.map((backendWorkstation) => ({
+        id: backendWorkstation.id,
+        name: backendWorkstation.name,
+        location: backendWorkstation.description || 'No description',
+        status: this.mapBackendStatusToFrontend(backendWorkstation.current_status),
+        people_count: this.calculatePeopleCount(backendWorkstation.zones || []),
+        efficiency: this.calculateEfficiency(backendWorkstation.zones || []),
+        last_activity: backendWorkstation.last_detection_at || 'No recent activity',
+        created_at: backendWorkstation.created_at,
+        updated_at: backendWorkstation.updated_at,
+        video_config: backendWorkstation.video_config
+      }));
+
+      return transformedData;
     } catch (error) {
       console.warn('Backend not available, using mock data:', error);
       // Refresh from localStorage in case another tab modified it
@@ -109,10 +124,50 @@ class WorkstationService {
     }
   }
 
+  private mapBackendStatusToFrontend(backendStatus: string): 'online' | 'offline' | 'alert' {
+    switch (backendStatus) {
+      case 'work':
+      case 'active':
+        return 'online';
+      case 'idle':
+        return 'alert';
+      case 'offline':
+      case 'inactive':
+        return 'offline';
+      default:
+        return 'offline';
+    }
+  }
+
+  private calculatePeopleCount(zones: any[]): number {
+    return zones.reduce((total, zone) => total + (zone.person_count || 0), 0);
+  }
+
+  private calculateEfficiency(zones: any[]): number {
+    const workingZones = zones.filter(zone => zone.status === 'work');
+    const totalZones = zones.length;
+    if (totalZones === 0) return 0;
+    return Math.round((workingZones.length / totalZones) * 100);
+  }
+
   async getWorkstation(id: number): Promise<Workstation> {
     try {
-      const response = await apiClient.get<Workstation>(`/workstations/${id}`);
-      return response.data;
+      const response = await apiClient.get<any>(`/workstations/${id}`);
+
+      // Transform backend data to frontend interface
+      const backendWorkstation = response.data;
+      return {
+        id: backendWorkstation.id,
+        name: backendWorkstation.name,
+        location: backendWorkstation.description || 'No description',
+        status: this.mapBackendStatusToFrontend(backendWorkstation.current_status),
+        people_count: this.calculatePeopleCount(backendWorkstation.zones || []),
+        efficiency: this.calculateEfficiency(backendWorkstation.zones || []),
+        last_activity: backendWorkstation.last_detection_at || 'No recent activity',
+        created_at: backendWorkstation.created_at,
+        updated_at: backendWorkstation.updated_at,
+        video_config: backendWorkstation.video_config
+      };
     } catch (error) {
       console.warn('Backend not available, using mock data:', error);
       const workstation = mockWorkstations.find(w => w.id === id);

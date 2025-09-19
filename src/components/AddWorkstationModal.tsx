@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Loader2, Search, Monitor, Camera, Video, Upload } from "lucide-react";
 import {
@@ -39,6 +39,39 @@ export function AddWorkstationModal({ open, onOpenChange, onAddWorkstation }: Ad
   const [showDevices, setShowDevices] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Reset file input when modal closes or opens
+  useEffect(() => {
+    if (!open) {
+      // Reset all form data when modal closes
+      setFormData({
+        name: '',
+        ipAddress: ''
+      });
+      setVideoSource('rtsp');
+      setRtspUrl('');
+      setSelectedUsbDevice('');
+      setUploadedFile(null);
+    }
+  }, [open]);
+
+  // Additional cleanup on component unmount
+  useEffect(() => {
+    return () => {
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    };
+  }, []);
+
+  // Function to reset file input manually
+  const resetFileInput = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+    setUploadedFile(null);
+  };
+
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -67,6 +100,7 @@ export function AddWorkstationModal({ open, onOpenChange, onAddWorkstation }: Ad
       setFormData({ name: "", ipAddress: "" });
       setVideoSource('rtsp');
       setRtspUrl('');
+      resetFileInput();
       setSelectedUsbDevice('');
       setUploadedFile(null);
       setShowDevices(false);
@@ -271,21 +305,20 @@ export function AddWorkstationModal({ open, onOpenChange, onAddWorkstation }: Ad
                 </Label>
                 <div className="relative">
                   <input
+                    id="video-file-upload"
                     ref={fileInputRef}
                     type="file"
                     accept=".mp4,.webm,.mov"
                     onChange={(e) => setUploadedFile(e.target.files?.[0] || null)}
-                    className="hidden"
-                    style={{ display: 'none' }}
+                    className="sr-only"
                   />
-                  <Button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="inline-flex items-center justify-center px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/90 rounded-md text-sm font-medium"
+                  <label
+                    htmlFor="video-file-upload"
+                    className="inline-flex items-center justify-center px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/90 rounded-md text-sm font-medium cursor-pointer"
                   >
                     <Upload className="h-4 w-4 mr-2" />
                     Add File
-                  </Button>
+                  </label>
                   {!uploadedFile && (
                     <span className="ml-3 text-sm text-muted-foreground">
                       No file selected
