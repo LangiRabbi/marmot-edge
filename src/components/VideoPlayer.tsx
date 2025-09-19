@@ -50,11 +50,13 @@ export function VideoPlayer({
     setError(null);
 
     const handleLoadSuccess = () => {
+      console.log('Video loaded successfully');
       setIsLoading(false);
       onLoadSuccess?.();
     };
 
     const handleLoadError = (errorMsg: string) => {
+      console.error('Video load error:', errorMsg);
       setError(errorMsg);
       setIsLoading(false);
       onLoadError?.(errorMsg);
@@ -125,11 +127,23 @@ export function VideoPlayer({
     }
 
     return () => {
+      console.log('Cleaning up video player');
       cleanupHls();
-      if (video.srcObject) {
-        const stream = video.srcObject as MediaStream;
-        stream.getTracks().forEach(track => track.stop());
-        video.srcObject = null;
+      if (video) {
+        // Remove event listeners
+        video.removeEventListener('loadedmetadata', handleLoadSuccess);
+        video.removeEventListener('error', handleLoadError);
+
+        // Clean up media streams
+        if (video.srcObject) {
+          const stream = video.srcObject as MediaStream;
+          stream.getTracks().forEach(track => track.stop());
+          video.srcObject = null;
+        }
+
+        // Clear video source
+        video.src = '';
+        video.load();
       }
     };
   }, [src, sourceType, width, height, onLoadError, onLoadSuccess]);

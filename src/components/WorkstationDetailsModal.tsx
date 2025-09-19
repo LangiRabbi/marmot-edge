@@ -182,8 +182,8 @@ export function WorkstationDetailsModal({ open, onOpenChange, workstation }: Wor
             {showVideoPlayer ? (
               <div className="bg-black rounded-lg border border-border overflow-hidden">
                 <VideoPlayer
-                  src="https://demo.unified-streaming.com/k8s/features/stable/video/tears-of-steel/tears-of-steel.ism/.m3u8"
-                  sourceType="hls"
+                  src="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4"
+                  sourceType="file"
                   width={400}
                   height={300}
                   autoPlay={true}
