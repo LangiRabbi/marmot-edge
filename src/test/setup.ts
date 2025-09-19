@@ -10,7 +10,7 @@ global.WebSocket = class MockWebSocket {
   close() {}
   addEventListener() {}
   removeEventListener() {}
-} as any
+} as typeof WebSocket
 
 // Mock dla MediaDevices (dla camera integration)
 Object.defineProperty(navigator, 'mediaDevices', {
