@@ -1,4 +1,4 @@
-import { Users, Clock, MoreVertical, Edit, Settings, BarChart3, Trash2 } from "lucide-react";
+import { Users, Clock, MoreVertical, Edit, Settings, BarChart3, Trash2, Camera } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { WorkstationDetailsModal } from "./WorkstationDetailsModal";
 import { EditWorkstationModal } from "./EditWorkstationModal";
+import { VideoPlayerModal } from "./VideoPlayerModal";
 import { useToast } from "@/hooks/use-toast";
 
 interface WorkstationCardProps {
@@ -47,6 +48,7 @@ export function WorkstationCard({
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showVideoModal, setShowVideoModal] = useState(false);
   const getStatusColor = () => {
     switch (status) {
       case 'online': return 'text-success';
@@ -88,6 +90,10 @@ export function WorkstationCard({
     setShowDeleteDialog(true);
   };
 
+  const handleViewVideo = () => {
+    setShowVideoModal(true);
+  };
+
   const confirmRemove = () => {
     onRemove?.(id);
     setShowDeleteDialog(false);
@@ -110,8 +116,20 @@ export function WorkstationCard({
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-lg font-semibold text-foreground">{name}</h3>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
+        <div className="flex items-center space-x-2">
+          {/* Camera Icon */}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 hover:bg-muted"
+            onClick={(e) => { e.stopPropagation(); handleViewVideo(); }}
+            title="View Live Feed"
+          >
+            <Camera className="h-4 w-4 text-primary" />
+          </Button>
+          {/* Menu */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
             <Button 
               variant="ghost" 
               size="icon" 
@@ -139,7 +157,8 @@ export function WorkstationCard({
               Remove
             </DropdownMenuItem>
           </DropdownMenuContent>
-        </DropdownMenu>
+          </DropdownMenu>
+        </div>
       </div>
 
       {/* Status */}
@@ -188,6 +207,17 @@ export function WorkstationCard({
         onOpenChange={setShowEditModal}
         currentName={name}
         onSave={handleSaveEdit}
+      />
+
+      <VideoPlayerModal
+        open={showVideoModal}
+        onOpenChange={setShowVideoModal}
+        workstationName={name}
+        workstationId={id}
+        videoConfig={{
+          type: 'hls', // Default to HLS for demo
+          url: undefined // Will use demo stream
+        }}
       />
 
       {/* Delete Confirmation Dialog */}
