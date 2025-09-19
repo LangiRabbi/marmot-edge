@@ -16,6 +16,7 @@ pydantic-settings==2.1.0
 ultralytics==8.0.206
 opencv-python==4.8.1.78
 pillow==10.1.0
+numpy<2.0.0
 
 # Real-time features
 websockets==12.0
