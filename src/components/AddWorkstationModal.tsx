@@ -53,7 +53,11 @@ export function AddWorkstationModal({ open, onOpenChange, onAddWorkstation }: Ad
       return;
     }
 
-    if (formData.name.trim() && formData.ipAddress.trim()) {
+    // IP Address is only required for RTSP and USB sources
+    const isIpRequired = videoSource === 'rtsp' || videoSource === 'usb';
+    const isFormValid = formData.name.trim() && (!isIpRequired || formData.ipAddress.trim());
+
+    if (isFormValid) {
       const videoConfig: VideoSourceConfig = {
         type: videoSource,
         url: videoSource === 'rtsp' ? rtspUrl : undefined,
@@ -122,65 +126,68 @@ export function AddWorkstationModal({ open, onOpenChange, onAddWorkstation }: Ad
             />
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="ipAddress" className="text-foreground font-medium">
-              Device IP Address
-            </Label>
-            
-            {/* Device Discovery Section */}
-            <div className="space-y-3">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleScanDevices}
-                disabled={isScanning}
-                className="w-full border-border hover:bg-muted text-foreground"
-              >
-                {isScanning ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Scanning for devices...
-                  </>
-                ) : (
-                  <>
-                    <Search className="mr-2 h-4 w-4" />
-                    Scan for Devices
-                  </>
-                )}
-              </Button>
+          {/* IP Address - Only shown for RTSP and USB sources */}
+          {(videoSource === 'rtsp' || videoSource === 'usb') && (
+            <div className="space-y-2">
+              <Label htmlFor="ipAddress" className="text-foreground font-medium">
+                Device IP Address
+              </Label>
 
-              {/* Discovered Devices List */}
-              {showDevices && discoveredDevices.length > 0 && (
-                <div className="space-y-2 p-3 bg-muted/30 rounded-lg border border-border">
-                  <p className="text-sm font-medium text-foreground">Discovered Devices:</p>
-                  <div className="space-y-1">
-                    {discoveredDevices.map((device, index) => (
-                      <button
-                        key={index}
-                        type="button"
-                        onClick={() => handleSelectDevice(device)}
-                        className="w-full p-2 text-left bg-background/50 hover:bg-background/80 border border-border rounded-md smooth-transition flex items-center space-x-2"
-                      >
-                        <Monitor className="h-4 w-4 text-primary" />
-                        <span className="text-foreground">
-                          {device.name} ({device.ip})
-                        </span>
-                      </button>
-                    ))}
+              {/* Device Discovery Section */}
+              <div className="space-y-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleScanDevices}
+                  disabled={isScanning}
+                  className="w-full border-border hover:bg-muted text-foreground"
+                >
+                  {isScanning ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Scanning for devices...
+                    </>
+                  ) : (
+                    <>
+                      <Search className="mr-2 h-4 w-4" />
+                      Scan for Devices
+                    </>
+                  )}
+                </Button>
+
+                {/* Discovered Devices List */}
+                {showDevices && discoveredDevices.length > 0 && (
+                  <div className="space-y-2 p-3 bg-muted/30 rounded-lg border border-border">
+                    <p className="text-sm font-medium text-foreground">Discovered Devices:</p>
+                    <div className="space-y-1">
+                      {discoveredDevices.map((device, index) => (
+                        <button
+                          key={index}
+                          type="button"
+                          onClick={() => handleSelectDevice(device)}
+                          className="w-full p-2 text-left bg-background/50 hover:bg-background/80 border border-border rounded-md smooth-transition flex items-center space-x-2"
+                        >
+                          <Monitor className="h-4 w-4 text-primary" />
+                          <span className="text-foreground">
+                            {device.name} ({device.ip})
+                          </span>
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
+              </div>
+
+              <Input
+                id="ipAddress"
+                value={formData.ipAddress}
+                onChange={(e) => setFormData({ ...formData, ipAddress: e.target.value })}
+                placeholder="e.g., 192.168.1.100"
+                className="bg-background/50 border-border text-foreground focus:border-primary focus:ring-1 focus:ring-primary/50 h-10 px-3"
+                required
+              />
             </div>
-            
-            <Input
-              id="ipAddress"
-              value={formData.ipAddress}
-              onChange={(e) => setFormData({ ...formData, ipAddress: e.target.value })}
-              placeholder="e.g., 192.168.1.100"
-              className="bg-background/50 border-border text-foreground focus:border-primary focus:ring-1 focus:ring-primary/50 h-10 px-3"
-              required
-            />
-          </div>
+          )}
 
           {/* Video Source Selection */}
           <div className="space-y-4">
@@ -263,20 +270,40 @@ export function AddWorkstationModal({ open, onOpenChange, onAddWorkstation }: Ad
             {/* File Upload Configuration */}
             {videoSource === 'file' && (
               <div className="space-y-4 p-4 bg-muted/30 rounded-lg border border-border">
-                <Label htmlFor="videoFile" className="text-foreground font-medium">
+                <Label className="text-foreground font-medium">
                   Video File (MP4, WebM, MOV - Max 500MB)
                 </Label>
                 <div className="relative">
-                  <Input
-                    id="videoFile"
+                  <input
+                    ref={(input) => {
+                      if (input) {
+                        input.onclick = null; // Clear any existing listeners
+                      }
+                    }}
                     type="file"
                     accept=".mp4,.webm,.mov"
                     onChange={(e) => setUploadedFile(e.target.files?.[0] || null)}
-                    className="w-full h-12 bg-background/50 border-border text-foreground
-                              file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0
-                              file:text-sm file:font-medium file:bg-primary file:text-primary-foreground
-                              hover:file:bg-primary/90 file:cursor-pointer cursor-pointer"
+                    className="hidden"
+                    style={{ display: 'none' }}
                   />
+                  <Button
+                    type="button"
+                    onClick={() => {
+                      const input = document.querySelector('input[type="file"][accept*=".mp4"]') as HTMLInputElement;
+                      if (input) {
+                        input.click();
+                      }
+                    }}
+                    className="inline-flex items-center justify-center px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/90 rounded-md text-sm font-medium"
+                  >
+                    <Upload className="h-4 w-4 mr-2" />
+                    Add File
+                  </Button>
+                  {!uploadedFile && (
+                    <span className="ml-3 text-sm text-muted-foreground">
+                      No file selected
+                    </span>
+                  )}
                 </div>
                 {uploadedFile && (
                   <div className="text-sm text-muted-foreground bg-background/30 p-2 rounded border">

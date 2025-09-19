@@ -25,7 +25,7 @@ export interface UpdateWorkstationRequest {
 }
 
 // Mock data for development when backend is not available
-const mockWorkstations: Workstation[] = [
+const initialMockWorkstations: Workstation[] = [
   {
     id: 1,
     name: 'Assembly Line 1',
@@ -61,6 +61,30 @@ const mockWorkstations: Workstation[] = [
   }
 ];
 
+// Get mock workstations from localStorage or use initial data
+const getMockWorkstations = (): Workstation[] => {
+  if (typeof window === 'undefined') return initialMockWorkstations;
+
+  const stored = localStorage.getItem('mockWorkstations');
+  if (stored) {
+    try {
+      return JSON.parse(stored);
+    } catch (e) {
+      console.warn('Failed to parse stored workstations, using initial data');
+    }
+  }
+  return [...initialMockWorkstations];
+};
+
+// Save mock workstations to localStorage
+const saveMockWorkstations = (workstations: Workstation[]) => {
+  if (typeof window !== 'undefined') {
+    localStorage.setItem('mockWorkstations', JSON.stringify(workstations));
+  }
+};
+
+let mockWorkstations = getMockWorkstations();
+
 class WorkstationService {
   async getWorkstations(): Promise<Workstation[]> {
     try {
@@ -68,6 +92,8 @@ class WorkstationService {
       return response.data;
     } catch (error) {
       console.warn('Backend not available, using mock data:', error);
+      // Refresh from localStorage in case another tab modified it
+      mockWorkstations = getMockWorkstations();
       return mockWorkstations;
     }
   }
@@ -104,6 +130,7 @@ class WorkstationService {
         updated_at: new Date().toISOString()
       };
       mockWorkstations.push(newWorkstation);
+      saveMockWorkstations(mockWorkstations);
       return newWorkstation;
     }
   }
@@ -124,6 +151,7 @@ class WorkstationService {
         ...data,
         updated_at: new Date().toISOString()
       };
+      saveMockWorkstations(mockWorkstations);
       return mockWorkstations[index];
     }
   }
@@ -138,6 +166,7 @@ class WorkstationService {
         throw new Error(`Workstation with id ${id} not found`);
       }
       mockWorkstations.splice(index, 1);
+      saveMockWorkstations(mockWorkstations);
     }
   }
 }
