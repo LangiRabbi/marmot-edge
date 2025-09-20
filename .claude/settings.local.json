@@ -56,7 +56,13 @@
       "Bash(isort:*)",
       "Bash(venvScripts:*)",
       "Bash(npm run test:coverage:*)",
-      "Bash(git rm:*)"
+      "Bash(git rm:*)",
+      "Bash(PYTHONPATH=. python app/main.py)",
+      "Bash(start http://localhost:8001/docs)",
+      "Bash(grep:*)",
+      "mcp__playwright__browser_console_messages",
+      "mcp__playwright__browser_drag",
+      "mcp__playwright__browser_evaluate"
     ],
     "deny": [],
     "ask": []

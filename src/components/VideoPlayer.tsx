@@ -22,6 +22,7 @@ interface VideoPlayerProps {
   isDrawingMode?: boolean;
   onDrawingModeChange?: (mode: boolean) => void;
   maxZones?: number;
+  isEditMode?: boolean;
 }
 
 export function VideoPlayer({
@@ -41,7 +42,8 @@ export function VideoPlayer({
   showZoneOverlay = false,
   isDrawingMode = false,
   onDrawingModeChange,
-  maxZones = 10
+  maxZones = 10,
+  isEditMode = false
 }: VideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<Hls | null>(null);
@@ -278,6 +280,7 @@ export function VideoPlayer({
           isDrawingMode={isDrawingMode}
           onDrawingModeChange={onDrawingModeChange || (() => {})}
           maxZones={maxZones}
+          isEditMode={isEditMode}
         />
       )}
 

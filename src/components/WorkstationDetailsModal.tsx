@@ -1,4 +1,4 @@
-import { Camera, Clock, Activity, Zap, MapPin, Download, Edit3, Trash2, Plus, MoreHorizontal, Target } from "lucide-react";
+import { Camera, Clock, Activity, Zap, MapPin, Download, Edit3, Trash2, Plus, MoreHorizontal, Target, Lock, Unlock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -41,18 +41,20 @@ export function WorkstationDetailsModal({ open, onOpenChange, workstation, video
   const [editingZone, setEditingZone] = useState<number | null>(null);
   const [editingName, setEditingName] = useState('');
   const [showVideoPlayer, setShowVideoPlayer] = useState(false);
-  const [showZoneOverlay, setShowZoneOverlay] = useState(false);
+  const [showZoneOverlay, setShowZoneOverlay] = useState(true);
   const [isDrawingMode, setIsDrawingMode] = useState(false);
   const [isLoadingZones, setIsLoadingZones] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
 
   // Reset state when modal opens/closes
   useEffect(() => {
     if (!open) {
       setShowVideoPlayer(false);
-      setShowZoneOverlay(false);
+      setShowZoneOverlay(true);
       setIsDrawingMode(false);
       setEditingZone(null);
       setEditingName('');
+      setIsEditMode(false);
     }
   }, [open]);
 
@@ -197,6 +199,19 @@ export function WorkstationDetailsModal({ open, onOpenChange, workstation, video
     setShowZoneOverlay(!showZoneOverlay);
     if (isDrawingMode && !showZoneOverlay) {
       setIsDrawingMode(false);
+    }
+  };
+
+  const handleToggleEditMode = () => {
+    const newEditMode = !isEditMode;
+    setIsEditMode(newEditMode);
+
+    if (newEditMode) {
+      // Entering edit mode
+      setShowZoneOverlay(true); // Ensure zones are visible
+    } else {
+      // Exiting edit mode
+      setIsDrawingMode(false); // Exit drawing mode if active
     }
   };
 
@@ -407,15 +422,35 @@ export function WorkstationDetailsModal({ open, onOpenChange, workstation, video
                 <h3 className="text-lg font-semibold text-foreground">Live Camera Feed</h3>
               </div>
               {showVideoPlayer && (
-                <Button
-                  variant={showZoneOverlay ? "default" : "outline"}
-                  size="sm"
-                  onClick={handleToggleZoneOverlay}
-                  className="text-xs"
-                >
-                  <Target className="h-3 w-3 mr-1" />
-                  {showZoneOverlay ? "Hide Zones" : "Show Zones"}
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant={showZoneOverlay ? "default" : "outline"}
+                    size="sm"
+                    onClick={handleToggleZoneOverlay}
+                    className="text-xs"
+                  >
+                    <Target className="h-3 w-3 mr-1" />
+                    {showZoneOverlay ? "Hide Zones" : "Show Zones"}
+                  </Button>
+                  <Button
+                    variant={isEditMode ? "default" : "outline"}
+                    size="sm"
+                    onClick={handleToggleEditMode}
+                    className={`text-xs ${isEditMode ? 'bg-primary text-primary-foreground border-primary shadow-lg' : ''}`}
+                  >
+                    {isEditMode ? (
+                      <>
+                        <Unlock className="h-3 w-3 mr-1" />
+                        Lock Zones
+                      </>
+                    ) : (
+                      <>
+                        <Lock className="h-3 w-3 mr-1" />
+                        Edit Zones
+                      </>
+                    )}
+                  </Button>
+                </div>
               )}
             </div>
             
@@ -423,7 +458,7 @@ export function WorkstationDetailsModal({ open, onOpenChange, workstation, video
               <div className="space-y-3">
                 {/* Zone Controls */}
                 <div className="flex items-center justify-between">
-                  {isDrawingMode && (
+                  {isDrawingMode && !isEditMode && (
                     <div className="text-xs text-muted-foreground flex items-center gap-1">
                       <div className="w-2 h-2 bg-primary rounded-full animate-pulse"></div>
                       Drawing Mode Active
@@ -432,7 +467,11 @@ export function WorkstationDetailsModal({ open, onOpenChange, workstation, video
                 </div>
 
                 {/* Video Player with Zone Overlay */}
-                <div className="bg-black rounded-lg border border-border overflow-hidden">
+                <div className={`bg-black rounded-lg border overflow-hidden ${
+                  isEditMode
+                    ? 'border-primary border-2 shadow-lg shadow-primary/20'
+                    : 'border-border'
+                }`}>
                   <VideoPlayer
                     src={getVideoSource().src}
                     sourceType={getVideoSource().sourceType}
@@ -449,6 +488,7 @@ export function WorkstationDetailsModal({ open, onOpenChange, workstation, video
                     isDrawingMode={isDrawingMode}
                     onDrawingModeChange={setIsDrawingMode}
                     maxZones={10}
+                    isEditMode={isEditMode}
                     onLoadSuccess={() => {
                       toast({
                         title: "Camera Connected",

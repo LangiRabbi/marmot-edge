@@ -29,6 +29,7 @@ interface VideoCanvasOverlayProps {
   isDrawingMode: boolean;
   onDrawingModeChange: (mode: boolean) => void;
   maxZones?: number;
+  isEditMode?: boolean;
 }
 
 interface DrawingState {
@@ -72,7 +73,8 @@ export function VideoCanvasOverlay({
   onZonesChange,
   isDrawingMode,
   onDrawingModeChange,
-  maxZones = 10
+  maxZones = 10,
+  isEditMode = false
 }: VideoCanvasOverlayProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -206,8 +208,8 @@ export function VideoCanvasOverlay({
       ctx.fillStyle = '#ffffff';
       ctx.fillText(labelText, labelX, labelY);
 
-      // Resize handles for selected zone
-      if (selectedZone === zone.id) {
+      // Resize handles for selected zone (only in edit mode)
+      if (selectedZone === zone.id && isEditMode) {
         ctx.fillStyle = zone.color;
         const handlePositions = [
           { x: x, y: y }, // nw
@@ -247,7 +249,7 @@ export function VideoCanvasOverlay({
       ctx.fillStyle = '#3B82F640';
       ctx.fillRect(startX, startY, rectWidth, rectHeight);
     }
-  }, [width, height, zones, selectedZone, isDrawingMode, drawingState, percentToPixel]);
+  }, [width, height, zones, selectedZone, isDrawingMode, drawingState, percentToPixel, isEditMode]);
 
   // Mouse event handlers
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
@@ -273,21 +275,23 @@ export function VideoCanvasOverlay({
       return;
     }
 
-    // Check for resize handles first
-    for (const zone of zones) {
-      const handle = getResizeHandle(pos.x, pos.y, zone);
-      if (handle) {
-        setDragState({
-          isDragging: true,
-          dragType: 'resize',
-          zoneId: zone.id,
-          resizeHandle: handle,
-          startX: pos.x,
-          startY: pos.y,
-          originalZone: { ...zone }
-        });
-        setSelectedZone(zone.id);
-        return;
+    // Check for resize handles first (only in edit mode)
+    if (isEditMode) {
+      for (const zone of zones) {
+        const handle = getResizeHandle(pos.x, pos.y, zone);
+        if (handle) {
+          setDragState({
+            isDragging: true,
+            dragType: 'resize',
+            zoneId: zone.id,
+            resizeHandle: handle,
+            startX: pos.x,
+            startY: pos.y,
+            originalZone: { ...zone }
+          });
+          setSelectedZone(zone.id);
+          return;
+        }
       }
     }
 
@@ -302,15 +306,18 @@ export function VideoCanvasOverlay({
             zoneId: zone.id
           });
         } else {
-          setDragState({
-            isDragging: true,
-            dragType: 'move',
-            zoneId: zone.id,
-            resizeHandle: null,
-            startX: pos.x,
-            startY: pos.y,
-            originalZone: { ...zone }
-          });
+          // Only allow dragging in edit mode
+          if (isEditMode) {
+            setDragState({
+              isDragging: true,
+              dragType: 'move',
+              zoneId: zone.id,
+              resizeHandle: null,
+              startX: pos.x,
+              startY: pos.y,
+              originalZone: { ...zone }
+            });
+          }
         }
         setSelectedZone(zone.id);
         return;
@@ -319,7 +326,7 @@ export function VideoCanvasOverlay({
 
     // Clicked on empty area
     setSelectedZone(null);
-  }, [getMousePos, isDrawingMode, zones, maxZones, toast, getResizeHandle, isPointInZone]);
+  }, [getMousePos, isDrawingMode, zones, maxZones, toast, getResizeHandle, isPointInZone, isEditMode]);
 
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
     const pos = getMousePos(e);
@@ -401,35 +408,37 @@ export function VideoCanvasOverlay({
       return;
     }
 
-    // Check for resize handles
-    for (const zone of zones) {
-      const handle = getResizeHandle(pos.x, pos.y, zone);
-      if (handle) {
-        const cursors = {
-          'nw': 'nw-resize',
-          'ne': 'ne-resize',
-          'sw': 'sw-resize',
-          'se': 'se-resize',
-          'n': 'n-resize',
-          'e': 'e-resize',
-          's': 's-resize',
-          'w': 'w-resize'
-        };
-        canvas.style.cursor = cursors[handle] || 'default';
-        return;
+    // Check for resize handles (only in edit mode)
+    if (isEditMode) {
+      for (const zone of zones) {
+        const handle = getResizeHandle(pos.x, pos.y, zone);
+        if (handle) {
+          const cursors = {
+            'nw': 'nw-resize',
+            'ne': 'ne-resize',
+            'sw': 'sw-resize',
+            'se': 'se-resize',
+            'n': 'n-resize',
+            'e': 'e-resize',
+            's': 's-resize',
+            'w': 'w-resize'
+          };
+          canvas.style.cursor = cursors[handle] || 'default';
+          return;
+        }
       }
-    }
 
-    // Check for zones
-    for (const zone of zones) {
-      if (isPointInZone(pos.x, pos.y, zone)) {
-        canvas.style.cursor = 'move';
-        return;
+      // Check for zones (only show move cursor in edit mode)
+      for (const zone of zones) {
+        if (isPointInZone(pos.x, pos.y, zone)) {
+          canvas.style.cursor = 'move';
+          return;
+        }
       }
     }
 
     canvas.style.cursor = 'default';
-  }, [getMousePos, isDrawingMode, drawingState, dragState, zones, onZonesChange, pixelToPercent, percentToPixel, getResizeHandle, isPointInZone, width, height]);
+  }, [getMousePos, isDrawingMode, drawingState, dragState, zones, onZonesChange, pixelToPercent, percentToPixel, getResizeHandle, isPointInZone, width, height, isEditMode]);
 
   const handleMouseUp = useCallback((e: React.MouseEvent) => {
     if (isDrawingMode && drawingState.isDrawing) {
