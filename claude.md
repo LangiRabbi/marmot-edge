@@ -63,12 +63,28 @@
 
 ### Quick Recovery (Git)
 ```bash
-# Return to this stable state
+# Return to LATEST stable milestone (VIDEO PLAYER PERFECTION)
+git reset --hard stable-v2.0-video-player-milestone
+git push origin feat/basic-api --force
+
+# Return to previous stable state (if video player issues)
 git reset --hard stable-v1.0-working
 git push origin feat/basic-api --force
 
 # Alternative: Create new branch from stable point
-git checkout -b hotfix/emergency stable-v1.0-working
+git checkout -b hotfix/emergency stable-v2.0-video-player-milestone
+```
+
+### Recovery by Feature
+```bash
+# Video Player Issues - use latest milestone
+git checkout stable-v2.0-video-player-milestone
+
+# General Backend Issues - use previous stable
+git checkout stable-v1.0-working
+
+# Create feature branch from stable milestone
+git checkout -b feature/new-feature stable-v2.0-video-player-milestone
 ```
 
 ### Backend Recovery
