@@ -40,7 +40,7 @@ export function WorkstationDetailsModal({ open, onOpenChange, workstation, video
   const [zones, setZones] = useState<Zone[]>([]);
   const [editingZone, setEditingZone] = useState<number | null>(null);
   const [editingName, setEditingName] = useState('');
-  const [showVideoPlayer, setShowVideoPlayer] = useState(false);
+  const [showVideoPlayer, setShowVideoPlayer] = useState(true);
   const [showZoneOverlay, setShowZoneOverlay] = useState(true);
   const [isDrawingMode, setIsDrawingMode] = useState(false);
   const [isLoadingZones, setIsLoadingZones] = useState(false);
@@ -49,7 +49,6 @@ export function WorkstationDetailsModal({ open, onOpenChange, workstation, video
   // Reset state when modal opens/closes
   useEffect(() => {
     if (!open) {
-      setShowVideoPlayer(false);
       setShowZoneOverlay(true);
       setIsDrawingMode(false);
       setEditingZone(null);
@@ -454,67 +453,56 @@ export function WorkstationDetailsModal({ open, onOpenChange, workstation, video
               )}
             </div>
             
-            {showVideoPlayer ? (
-              <div className="space-y-3">
-                {/* Zone Controls */}
-                <div className="flex items-center justify-between">
-                  {isDrawingMode && !isEditMode && (
-                    <div className="text-xs text-muted-foreground flex items-center gap-1">
-                      <div className="w-2 h-2 bg-primary rounded-full animate-pulse"></div>
-                      Drawing Mode Active
-                    </div>
-                  )}
-                </div>
+            <div className="space-y-3">
+              {/* Zone Controls */}
+              <div className="flex items-center justify-between">
+                {isDrawingMode && !isEditMode && (
+                  <div className="text-xs text-muted-foreground flex items-center gap-1">
+                    <div className="w-2 h-2 bg-primary rounded-full animate-pulse"></div>
+                    Drawing Mode Active
+                  </div>
+                )}
+              </div>
 
-                {/* Video Player with Zone Overlay */}
-                <div className={`bg-black rounded-lg border overflow-hidden ${
-                  isEditMode
-                    ? 'border-primary border-2 shadow-lg shadow-primary/20'
-                    : 'border-border'
-                }`}>
-                  <VideoPlayer
-                    src={getVideoSource().src}
-                    sourceType={getVideoSource().sourceType}
-                    fallbackSrc={getVideoSource().fallbackSrc}
-                    width={800}
-                    height={450}
-                    autoPlay={true}
-                    controls={true}
-                    className="w-full"
-                    // Zone management props
-                    zones={zones}
-                    onZonesChange={handleZonesChange}
-                    showZoneOverlay={showZoneOverlay}
-                    isDrawingMode={isDrawingMode}
-                    onDrawingModeChange={setIsDrawingMode}
-                    maxZones={10}
-                    isEditMode={isEditMode}
-                    onLoadSuccess={() => {
-                      toast({
-                        title: "Camera Connected",
-                        description: "Live feed is now active.",
-                      });
-                    }}
-                    onLoadError={(error) => {
-                      toast({
-                        title: "Connection Error",
-                        description: error,
-                        variant: "destructive",
-                      });
-                    }}
-                  />
-                </div>
+              {/* Video Player with Zone Overlay */}
+              <div className={`bg-black rounded-lg border overflow-hidden ${
+                isEditMode
+                  ? 'border-primary border-2 shadow-lg shadow-primary/20'
+                  : 'border-border'
+              }`}>
+                <VideoPlayer
+                  src={getVideoSource().src}
+                  sourceType={getVideoSource().sourceType}
+                  fallbackSrc={getVideoSource().fallbackSrc}
+                  width={800}
+                  height={450}
+                  autoPlay={true}
+                  controls={true}
+                  className="w-full"
+                  // Zone management props
+                  zones={zones}
+                  onZonesChange={handleZonesChange}
+                  showZoneOverlay={showZoneOverlay}
+                  isDrawingMode={isDrawingMode}
+                  onDrawingModeChange={setIsDrawingMode}
+                  maxZones={10}
+                  isEditMode={isEditMode}
+                  onLoadSuccess={() => {
+                    toast({
+                      title: "Camera Connected",
+                      description: "Live feed is now active.",
+                    });
+                  }}
+                  onLoadError={(error) => {
+                    toast({
+                      title: "Connection Error",
+                      description: error,
+                      variant: "destructive",
+                    });
+                  }}
+                />
               </div>
-            ) : (
-              <div className="bg-muted/30 rounded-lg p-8 text-center border border-border cursor-pointer hover:bg-muted/40 transition-colors"
-                   onClick={() => setShowVideoPlayer(true)}>
-                <div className="w-20 h-20 mx-auto mb-4 bg-muted rounded-full flex items-center justify-center">
-                  <Camera className="h-8 w-8 text-muted-foreground" />
-                </div>
-                <p className="text-foreground font-medium">Click to Start Camera Feed</p>
-                <p className="text-sm text-muted-foreground">Resolution: 1920x1080 • 30 FPS</p>
-              </div>
-            )}
+            </div>
 
             {/* Stats Grid - Horizontal Layout */}
             <div className="grid grid-cols-3 gap-3 mt-6">
