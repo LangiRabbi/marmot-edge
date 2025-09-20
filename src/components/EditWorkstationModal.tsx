@@ -33,8 +33,8 @@ export function EditWorkstationModal({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (name.trim() && name.trim() !== currentName) {
-      onSave(name.trim());
-      onOpenChange(false);
+      onOpenChange(false);  // Close modal IMMEDIATELY
+      onSave(name.trim());  // Then trigger save
     }
   };
 

@@ -1,4 +1,4 @@
-import { Camera, Clock, Activity, Zap, MapPin, Download, Edit3, Trash2, Plus, MoreHorizontal } from "lucide-react";
+import { Camera, Clock, Activity, Zap, MapPin, Download, Edit3, Trash2, Plus, MoreHorizontal, Target } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -15,42 +15,123 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { useState } from "react";
-
-interface Zone {
-  id: number;
-  name: string;
-  status: 'Work' | 'Idle' | 'Other';
-}
+import { VideoPlayer } from "./VideoPlayer";
+import { Zone } from "./VideoCanvasOverlay";
+import { useState, useEffect } from "react";
+import type { VideoSourceConfig } from "@/services/workstationService";
+import { zoneService, type CanvasZone } from "@/services/zoneService";
 
 interface WorkstationDetailsModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   workstation: {
+    id: number;
     name: string;
     status: 'online' | 'offline' | 'alert';
     peopleCount: number;
     efficiency: number;
     lastActivity: string;
   };
+  videoConfig?: VideoSourceConfig;
 }
 
-const initialZones: Zone[] = [
-  { id: 1, name: 'Assembly Line A', status: 'Work' },
-  { id: 2, name: 'Quality Control', status: 'Idle' },
-  { id: 3, name: 'Packaging Station', status: 'Work' },
-  { id: 4, name: 'Storage Area B', status: 'Other' },
-  { id: 5, name: 'Maintenance Bay', status: 'Other' },
-  { id: 6, name: 'Inspection Zone', status: 'Work' },
-  { id: 7, name: 'Raw Materials', status: 'Idle' },
-  { id: 8, name: 'Final Assembly', status: 'Work' },
-];
-
-export function WorkstationDetailsModal({ open, onOpenChange, workstation }: WorkstationDetailsModalProps) {
+export function WorkstationDetailsModal({ open, onOpenChange, workstation, videoConfig }: WorkstationDetailsModalProps) {
   const { toast } = useToast();
-  const [zones, setZones] = useState<Zone[]>(initialZones);
+  const [zones, setZones] = useState<Zone[]>([]);
   const [editingZone, setEditingZone] = useState<number | null>(null);
   const [editingName, setEditingName] = useState('');
+  const [showVideoPlayer, setShowVideoPlayer] = useState(false);
+  const [showZoneOverlay, setShowZoneOverlay] = useState(false);
+  const [isDrawingMode, setIsDrawingMode] = useState(false);
+  const [isLoadingZones, setIsLoadingZones] = useState(false);
+
+  // Reset state when modal opens/closes
+  useEffect(() => {
+    if (!open) {
+      setShowVideoPlayer(false);
+      setShowZoneOverlay(false);
+      setIsDrawingMode(false);
+      setEditingZone(null);
+      setEditingName('');
+    }
+  }, [open]);
+
+  // Load zones from backend when modal opens
+  useEffect(() => {
+    if (open && workstation.id) {
+      const loadZones = async () => {
+        setIsLoadingZones(true);
+        try {
+          const backendZones = await zoneService.getZonesByWorkstation(workstation.id);
+          const canvasZones = backendZones.map(zone => zoneService.convertToCanvasZone(zone));
+          setZones(canvasZones);
+        } catch (error) {
+          console.error('Failed to load zones:', error);
+          toast({
+            title: "Failed to load zones",
+            description: "Using local data instead",
+            variant: "destructive",
+          });
+          // Set some default zones as fallback
+          setZones([
+            { id: 1, name: 'Assembly Area', x: 20, y: 20, width: 30, height: 25, color: '#3B82F6', status: 'Work' },
+            { id: 2, name: 'Quality Control', x: 55, y: 20, width: 25, height: 20, color: '#10B981', status: 'Idle' },
+            { id: 3, name: 'Packaging Station', x: 20, y: 50, width: 28, height: 30, color: '#F59E0B', status: 'Work' },
+          ]);
+        } finally {
+          setIsLoadingZones(false);
+        }
+      };
+
+      loadZones();
+    }
+  }, [open, workstation.id, toast]);
+
+  // Get video source URL and type based on config
+  const getVideoSource = () => {
+    if (!videoConfig) {
+      // Default fallback video
+      return {
+        src: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
+        sourceType: "file" as const
+      };
+    }
+
+    switch (videoConfig.type) {
+      case 'file': {
+        // Check if blob URL is still valid, fallback to default if not
+        const filePath = videoConfig.filePath;
+        if (filePath && filePath.startsWith('blob:')) {
+          // For blob URLs, we'll let VideoPlayer handle the error and fallback
+          return {
+            src: filePath,
+            sourceType: "file" as const,
+            fallbackSrc: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4"
+          };
+        }
+        return {
+          src: filePath || "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
+          sourceType: "file" as const
+        };
+      }
+      case 'rtsp':
+        // Use test HLS stream since RTSP URLs don't work in browser
+        return {
+          src: "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8",
+          sourceType: "hls" as const
+        };
+      case 'usb':
+        return {
+          src: videoConfig.usbDeviceId || "",
+          sourceType: "usb" as const
+        };
+      default:
+        return {
+          src: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
+          sourceType: "file" as const
+        };
+    }
+  };
   
   const getStatusColor = () => {
     switch (workstation.status) {
@@ -86,48 +167,94 @@ export function WorkstationDetailsModal({ open, onOpenChange, workstation }: Wor
   };
 
   const handleAddZone = () => {
-    const newId = Math.max(...zones.map(z => z.id)) + 1;
-    const newZone: Zone = {
-      id: newId,
-      name: `New Zone ${newId}`,
-      status: 'Idle'
-    };
-    setZones([...zones, newZone]);
+    if (zones.length >= 10) {
+      toast({
+        title: "Maximum zones reached",
+        description: "You can only create up to 10 zones per workstation.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsDrawingMode(true);
+    setShowZoneOverlay(true);
+
     toast({
-      title: "Zone Added",
-      description: `Zone ${newId} has been created.`,
+      title: "Drawing Mode Activated",
+      description: "Click and drag on the video to create a new zone.",
     });
   };
 
-  const handleDeleteZone = (zoneId: number) => {
-    setZones(zones.filter(zone => zone.id !== zoneId));
-    toast({
-      title: "Zone Deleted",
-      description: `Zone ${zoneId} has been removed.`,
-    });
+  const getZoneDisplayName = (zone: Zone) => {
+    return `${workstation.name} - Zone ${zone.id}`;
+  };
+
+  const getZoneDescription = (zone: Zone) => {
+    return zone.name || "New Zone";
+  };
+
+  const handleToggleZoneOverlay = () => {
+    setShowZoneOverlay(!showZoneOverlay);
+    if (isDrawingMode && !showZoneOverlay) {
+      setIsDrawingMode(false);
+    }
+  };
+
+  const handleDeleteZone = async (zoneId: number) => {
+    try {
+      await zoneService.deleteZone(zoneId);
+      setZones(zones.filter(zone => zone.id !== zoneId));
+      toast({
+        title: "Zone Deleted",
+        description: `Zone has been removed successfully.`,
+      });
+    } catch (error) {
+      console.error('Failed to delete zone:', error);
+      toast({
+        title: "Delete Failed",
+        description: "Failed to delete zone from server.",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleEditZone = (zoneId: number) => {
     const zone = zones.find(z => z.id === zoneId);
     if (zone) {
       setEditingZone(zoneId);
-      setEditingName(zone.name);
+      setEditingName(getZoneDescription(zone));
     }
   };
 
-  const handleSaveEdit = () => {
+  const handleSaveEdit = async () => {
     if (editingZone && editingName.trim()) {
-      setZones(zones.map(zone => 
-        zone.id === editingZone 
-          ? { ...zone, name: editingName.trim() }
-          : zone
-      ));
-      setEditingZone(null);
-      setEditingName('');
-      toast({
-        title: "Zone Updated",
-        description: "Zone name has been updated successfully.",
-      });
+      try {
+        const zone = zones.find(z => z.id === editingZone);
+        if (zone) {
+          const updatedZone = { ...zone, name: editingName.trim() };
+          const updateRequest = zoneService.convertFromCanvasZoneUpdate(updatedZone);
+          await zoneService.updateZone(editingZone, updateRequest);
+
+          setZones(zones.map(z =>
+            z.id === editingZone
+              ? updatedZone
+              : z
+          ));
+          setEditingZone(null);
+          setEditingName('');
+          toast({
+            title: "Zone Updated",
+            description: "Zone description has been updated successfully.",
+          });
+        }
+      } catch (error) {
+        console.error('Failed to update zone:', error);
+        toast({
+          title: "Update Failed",
+          description: "Failed to update zone on server.",
+          variant: "destructive",
+        });
+      }
     }
   };
 
@@ -137,9 +264,111 @@ export function WorkstationDetailsModal({ open, onOpenChange, workstation }: Wor
   };
 
   const handleConfigureZone = (zoneId: number) => {
+    setShowZoneOverlay(true);
     toast({
       title: "Zone Configuration",
-      description: `Configure zone ${zoneId} boundaries on video feed.`,
+      description: `You can now edit zone ${zoneId} boundaries on the video feed.`,
+    });
+  };
+
+  const handleZonesChange = async (newZones: Zone[]) => {
+    // Check if a new zone was added (length increased)
+    if (newZones.length > zones.length) {
+      const newZone = newZones[newZones.length - 1];
+      try {
+        // Give the new zone a default description
+        const zoneWithDefaultName = {
+          ...newZone,
+          name: "New Zone" // This will be the description, not the main name
+        };
+
+        // Create the zone in the backend
+        const createRequest = zoneService.convertFromCanvasZone(zoneWithDefaultName, workstation.id);
+        const createdZone = await zoneService.createZone(createRequest);
+        const canvasZone = zoneService.convertToCanvasZone(createdZone);
+
+        // Update local state with the backend-created zone (which has a real ID)
+        setZones(zones.concat([canvasZone]));
+
+        toast({
+          title: "Zone Created",
+          description: `${getZoneDisplayName(canvasZone)} has been created successfully.`,
+        });
+      } catch (error) {
+        console.error('Failed to create zone:', error);
+        toast({
+          title: "Create Failed",
+          description: "Failed to create zone on server.",
+          variant: "destructive",
+        });
+        // Don't update the local state if backend creation failed
+      }
+    } else if (newZones.length < zones.length) {
+      // Zone was deleted - handled by handleDeleteZone
+      setZones(newZones);
+    } else {
+      // Zone was modified - update locally and sync to backend
+      const modifiedZones = newZones.filter((newZone, index) => {
+        const oldZone = zones[index];
+        return oldZone && (
+          newZone.x !== oldZone.x ||
+          newZone.y !== oldZone.y ||
+          newZone.width !== oldZone.width ||
+          newZone.height !== oldZone.height
+        );
+      });
+
+      if (modifiedZones.length > 0) {
+        try {
+          // Update all modified zones in the backend
+          await Promise.all(modifiedZones.map(async (zone) => {
+            const updateRequest = zoneService.convertFromCanvasZoneUpdate(zone);
+            await zoneService.updateZone(zone.id, updateRequest);
+          }));
+
+          setZones(newZones);
+        } catch (error) {
+          console.error('Failed to update zones:', error);
+          toast({
+            title: "Update Failed",
+            description: "Failed to save zone changes to server.",
+            variant: "destructive",
+          });
+        }
+      } else {
+        // No actual changes, just update local state
+        setZones(newZones);
+      }
+    }
+  };
+
+  const handleExportYOLOData = () => {
+    const yoloData = {
+      zones: zones.map(zone => ({
+        id: zone.id,
+        name: zone.name,
+        // Convert to normalized coordinates (0-1)
+        x: zone.x / 100,
+        y: zone.y / 100,
+        width: zone.width / 100,
+        height: zone.height / 100,
+        color: zone.color,
+        status: zone.status
+      })),
+      metadata: {
+        workstation: workstation.name,
+        resolution: { width: 500, height: 500 },
+        timestamp: new Date().toISOString(),
+        version: "1.0"
+      }
+    };
+
+    // In a real app, you would download this or send to backend
+    console.log('YOLO Export Data:', yoloData);
+
+    toast({
+      title: "YOLO Data Exported",
+      description: "Zone data has been prepared for YOLOv11 tracking.",
     });
   };
 
@@ -151,7 +380,7 @@ export function WorkstationDetailsModal({ open, onOpenChange, workstation }: Wor
             <DialogTitle className="text-xl font-bold text-foreground flex items-center gap-2">
               {workstation.name}
               <span className={`text-sm font-medium ${getStatusColor()}`}>
-                {workstation.status.charAt(0).toUpperCase() + workstation.status.slice(1)}
+                {workstation.status ? workstation.status.charAt(0).toUpperCase() + workstation.status.slice(1) : 'Unknown'}
               </span>
             </DialogTitle>
             <Button
@@ -177,13 +406,84 @@ export function WorkstationDetailsModal({ open, onOpenChange, workstation }: Wor
               <h3 className="text-lg font-semibold text-foreground">Live Camera Feed</h3>
             </div>
             
-            <div className="bg-muted/30 rounded-lg p-8 text-center border border-border">
-              <div className="w-20 h-20 mx-auto mb-4 bg-muted rounded-full flex items-center justify-center">
-                <Camera className="h-8 w-8 text-muted-foreground" />
+            {showVideoPlayer ? (
+              <div className="space-y-3">
+                {/* Zone Controls */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant={showZoneOverlay ? "default" : "outline"}
+                      size="sm"
+                      onClick={handleToggleZoneOverlay}
+                      className="text-xs"
+                    >
+                      <Target className="h-3 w-3 mr-1" />
+                      {showZoneOverlay ? "Hide Zones" : "Show Zones"}
+                    </Button>
+                    {showZoneOverlay && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleExportYOLOData}
+                        className="text-xs"
+                      >
+                        <Download className="h-3 w-3 mr-1" />
+                        Export YOLO
+                      </Button>
+                    )}
+                  </div>
+                  {isDrawingMode && (
+                    <div className="text-xs text-muted-foreground flex items-center gap-1">
+                      <div className="w-2 h-2 bg-primary rounded-full animate-pulse"></div>
+                      Drawing Mode Active
+                    </div>
+                  )}
+                </div>
+
+                {/* Video Player with Zone Overlay */}
+                <div className="bg-black rounded-lg border border-border overflow-hidden">
+                  <VideoPlayer
+                    src={getVideoSource().src}
+                    sourceType={getVideoSource().sourceType}
+                    fallbackSrc={getVideoSource().fallbackSrc}
+                    width={400}
+                    height={300}
+                    autoPlay={true}
+                    controls={true}
+                    className="w-full"
+                    // Zone management props
+                    zones={zones}
+                    onZonesChange={handleZonesChange}
+                    showZoneOverlay={showZoneOverlay}
+                    isDrawingMode={isDrawingMode}
+                    onDrawingModeChange={setIsDrawingMode}
+                    maxZones={10}
+                    onLoadSuccess={() => {
+                      toast({
+                        title: "Camera Connected",
+                        description: "Live feed is now active.",
+                      });
+                    }}
+                    onLoadError={(error) => {
+                      toast({
+                        title: "Connection Error",
+                        description: error,
+                        variant: "destructive",
+                      });
+                    }}
+                  />
+                </div>
               </div>
-              <p className="text-foreground font-medium">Camera Feed Active</p>
-              <p className="text-sm text-muted-foreground">Resolution: 1920x1080 • 30 FPS</p>
-            </div>
+            ) : (
+              <div className="bg-muted/30 rounded-lg p-8 text-center border border-border cursor-pointer hover:bg-muted/40 transition-colors"
+                   onClick={() => setShowVideoPlayer(true)}>
+                <div className="w-20 h-20 mx-auto mb-4 bg-muted rounded-full flex items-center justify-center">
+                  <Camera className="h-8 w-8 text-muted-foreground" />
+                </div>
+                <p className="text-foreground font-medium">Click to Start Camera Feed</p>
+                <p className="text-sm text-muted-foreground">Resolution: 1920x1080 • 30 FPS</p>
+              </div>
+            )}
 
             {/* Stats Grid */}
             <div className="grid grid-cols-3 gap-4 mt-6">
@@ -220,13 +520,19 @@ export function WorkstationDetailsModal({ open, onOpenChange, workstation }: Wor
                   size="sm"
                   onClick={handleAddZone}
                   className="border-border hover:bg-muted text-foreground"
+                  disabled={isLoadingZones}
                 >
                   <Plus className="h-4 w-4 mr-2" />
                   Add Zone
                 </Button>
               </div>
-              
-              <div className="space-y-3 max-h-64 overflow-y-auto scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent">
+
+              {isLoadingZones ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className="text-muted-foreground">Loading zones...</div>
+                </div>
+              ) : (
+                <div className="space-y-3 max-h-64 overflow-y-auto scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent">
                 {zones.map((zone) => (
                   <div key={zone.id} className={`flex items-center justify-between p-3 rounded-md border ${getZoneStatusBg(zone.status)}`}>
                     <div className="flex-1">
@@ -263,8 +569,8 @@ export function WorkstationDetailsModal({ open, onOpenChange, workstation }: Wor
                         </div>
                       ) : (
                         <>
-                          <p className="text-sm font-medium text-foreground">Zone {zone.id}</p>
-                          <p className="text-xs text-muted-foreground">{zone.name}</p>
+                          <p className="text-sm font-medium text-foreground">{getZoneDisplayName(zone)}</p>
+                          <p className="text-xs text-muted-foreground">{getZoneDescription(zone)}</p>
                         </>
                       )}
                     </div>
@@ -285,7 +591,7 @@ export function WorkstationDetailsModal({ open, onOpenChange, workstation }: Wor
                           <DropdownMenuContent align="end">
                             <DropdownMenuItem onClick={() => handleEditZone(zone.id)}>
                               <Edit3 className="h-4 w-4 mr-2" />
-                              Rename Zone
+                              Edit Description
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => handleConfigureZone(zone.id)}>
                               <MapPin className="h-4 w-4 mr-2" />
@@ -304,7 +610,8 @@ export function WorkstationDetailsModal({ open, onOpenChange, workstation }: Wor
                     </div>
                   </div>
                 ))}
-              </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
