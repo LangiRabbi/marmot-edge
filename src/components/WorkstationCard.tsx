@@ -21,6 +21,7 @@ import {
 import { WorkstationDetailsModal } from "./WorkstationDetailsModal";
 import { EditWorkstationModal } from "./EditWorkstationModal";
 import { useToast } from "@/hooks/use-toast";
+import type { VideoSourceConfig } from "@/services/workstationService";
 
 interface WorkstationCardProps {
   id: string;
@@ -29,17 +30,19 @@ interface WorkstationCardProps {
   peopleCount: number;
   efficiency: number;
   lastActivity: string;
+  videoConfig?: VideoSourceConfig;
   onEdit?: (id: string, newName: string) => void;
   onRemove?: (id: string) => void;
 }
 
-export function WorkstationCard({ 
+export function WorkstationCard({
   id,
-  name, 
-  status, 
-  peopleCount, 
-  efficiency, 
+  name,
+  status,
+  peopleCount,
+  efficiency,
   lastActivity,
+  videoConfig,
   onEdit,
   onRemove
 }: WorkstationCardProps) {
@@ -88,6 +91,7 @@ export function WorkstationCard({
     setShowDeleteDialog(true);
   };
 
+
   const confirmRemove = () => {
     onRemove?.(id);
     setShowDeleteDialog(false);
@@ -111,7 +115,7 @@ export function WorkstationCard({
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-lg font-semibold text-foreground">{name}</h3>
         <DropdownMenu>
-          <DropdownMenuTrigger asChild>
+            <DropdownMenuTrigger asChild>
             <Button 
               variant="ghost" 
               size="icon" 
@@ -180,7 +184,8 @@ export function WorkstationCard({
       <WorkstationDetailsModal
         open={showDetailsModal}
         onOpenChange={setShowDetailsModal}
-        workstation={{ name, status, peopleCount, efficiency, lastActivity }}
+        workstation={{ id: parseInt(id), name, status, peopleCount, efficiency, lastActivity }}
+        videoConfig={videoConfig}
       />
 
       <EditWorkstationModal
@@ -189,6 +194,7 @@ export function WorkstationCard({
         currentName={name}
         onSave={handleSaveEdit}
       />
+
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>

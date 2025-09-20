@@ -4,21 +4,23 @@ Basic test script to check if we can import our models and FastAPI app
 without requiring database connection.
 """
 
-import sys
 import os
+import sys
 
 # Add the app directory to Python path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'app'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "app"))
 
 try:
     print("Testing basic Python imports...")
 
     print("Testing app.models import...")
-    from app.models import Base, Workstation, Zone, Detection
+    from app.models import Base, Detection, Workstation, Zone
+
     print("Models imported successfully")
 
     print("Testing FastAPI app import...")
     from app.main import app
+
     print("FastAPI app imported successfully")
 
     print("All basic imports successful!")

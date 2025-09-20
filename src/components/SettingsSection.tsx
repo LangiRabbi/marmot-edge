@@ -5,6 +5,12 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Edit, Trash2, Plus, Users, Settings, BarChart3 } from "lucide-react";
 
+interface User {
+  id: number;
+  name: string;
+  email: string;
+}
+
 const supervisors = [
   { id: 1, name: "Jan Kowalski", email: "jan.k@company.com" },
   { id: 2, name: "Anna Nowak", email: "anna.n@company.com" }
@@ -34,7 +40,7 @@ export function SettingsSection() {
     facilityLocation: "Factory Floor A, Building 2"
   });
 
-  const renderTeamSection = (title: string, icon: React.ReactNode, users: any[], description: string) => (
+  const renderTeamSection = (title: string, icon: React.ReactNode, users: User[], description: string) => (
     <div className="glass-card p-6 mb-6">
       <div className="flex items-center space-x-2 mb-4">
         {icon}

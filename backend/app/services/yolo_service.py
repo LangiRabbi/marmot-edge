@@ -1,14 +1,16 @@
 """
 YOLOv11 person detection and tracking service with BoT-SORT
 """
+
 import io
-import os
 import logging
-from typing import List, Tuple, Dict, Any, Optional
+import os
+from typing import Any, Dict, List, Optional, Tuple
+
+import cv2
 import numpy as np
 from PIL import Image
 from ultralytics import YOLO
-import cv2
 
 logger = logging.getLogger(__name__)
 
@@ -16,7 +18,9 @@ logger = logging.getLogger(__name__)
 class YOLOTrackingService:
     """Service for YOLOv11 person detection and tracking with BoT-SORT"""
 
-    def __init__(self, confidence_threshold: float = 0.5, tracker: str = "botsort.yaml"):
+    def __init__(
+        self, confidence_threshold: float = 0.5, tracker: str = "botsort.yaml"
+    ):
         """
         Initialize YOLO tracking service
 
@@ -34,13 +38,17 @@ class YOLOTrackingService:
         try:
             # Load YOLOv11 nano model for faster inference
             # Will download model if not cached
-            self.model = YOLO('yolo11n.pt')
-            logger.info(f"YOLOv11 model loaded successfully with {self.tracker} tracker")
+            self.model = YOLO("yolo11n.pt")
+            logger.info(
+                f"YOLOv11 model loaded successfully with {self.tracker} tracker"
+            )
         except Exception as e:
             logger.error(f"Failed to load YOLOv11 model: {e}")
             raise
 
-    def track_persons(self, image_data: bytes, persist: bool = True) -> List[Dict[str, Any]]:
+    def track_persons(
+        self, image_data: bytes, persist: bool = True
+    ) -> List[Dict[str, Any]]:
         """
         Track persons in image with persistent IDs
 
@@ -56,8 +64,8 @@ class YOLOTrackingService:
             image = Image.open(io.BytesIO(image_data))
 
             # Convert to RGB if needed
-            if image.mode != 'RGB':
-                image = image.convert('RGB')
+            if image.mode != "RGB":
+                image = image.convert("RGB")
 
             # Convert PIL to numpy for YOLO tracking
             image_np = np.array(image)
@@ -68,7 +76,7 @@ class YOLOTrackingService:
                 conf=self.confidence_threshold,
                 classes=[0],  # class 0 = person
                 tracker=self.tracker,
-                persist=persist
+                persist=persist,
             )
 
             trackings = []
@@ -86,26 +94,30 @@ class YOLOTrackingService:
                             track_id = int(box.id[0].cpu().numpy())
 
                         tracking = {
-                            'bbox': {
-                                'x1': float(x1),
-                                'y1': float(y1),
-                                'x2': float(x2),
-                                'y2': float(y2)
+                            "bbox": {
+                                "x1": float(x1),
+                                "y1": float(y1),
+                                "x2": float(x2),
+                                "y2": float(y2),
                             },
-                            'confidence': confidence,
-                            'class': 'person',
-                            'track_id': track_id
+                            "confidence": confidence,
+                            "class": "person",
+                            "track_id": track_id,
                         }
                         trackings.append(tracking)
 
-            logger.info(f"Tracked {len(trackings)} persons with confidence >= {self.confidence_threshold}")
+            logger.info(
+                f"Tracked {len(trackings)} persons with confidence >= {self.confidence_threshold}"
+            )
             return trackings
 
         except Exception as e:
             logger.error(f"Person tracking failed: {e}")
             raise
 
-    def track_persons_from_file(self, image_path: str, persist: bool = True) -> List[Dict[str, Any]]:
+    def track_persons_from_file(
+        self, image_path: str, persist: bool = True
+    ) -> List[Dict[str, Any]]:
         """
         Track persons from image file
 
@@ -117,7 +129,7 @@ class YOLOTrackingService:
             List of tracking dictionaries
         """
         try:
-            with open(image_path, 'rb') as f:
+            with open(image_path, "rb") as f:
                 image_data = f.read()
             return self.track_persons(image_data, persist=persist)
         except Exception as e:
@@ -141,7 +153,7 @@ class YOLOTrackingService:
                 classes=[0],  # person only
                 tracker=self.tracker,
                 persist=persist,
-                stream=True  # Use streaming for real-time
+                stream=True,  # Use streaming for real-time
             )
 
             for result in results:
@@ -165,21 +177,23 @@ class YOLOTrackingService:
                     track_id = int(box.id[0].cpu().numpy())
 
                 tracking = {
-                    'bbox': {
-                        'x1': float(x1),
-                        'y1': float(y1),
-                        'x2': float(x2),
-                        'y2': float(y2)
+                    "bbox": {
+                        "x1": float(x1),
+                        "y1": float(y1),
+                        "x2": float(x2),
+                        "y2": float(y2),
                     },
-                    'confidence': confidence,
-                    'class': 'person',
-                    'track_id': track_id
+                    "confidence": confidence,
+                    "class": "person",
+                    "track_id": track_id,
                 }
                 trackings.append(tracking)
 
         return trackings
 
-    def get_person_centers_with_ids(self, trackings: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    def get_person_centers_with_ids(
+        self, trackings: List[Dict[str, Any]]
+    ) -> List[Dict[str, Any]]:
         """
         Get center points of tracked persons with their IDs
 
@@ -191,16 +205,18 @@ class YOLOTrackingService:
         """
         centers = []
         for tracking in trackings:
-            bbox = tracking['bbox']
-            center_x = (bbox['x1'] + bbox['x2']) / 2
-            center_y = (bbox['y1'] + bbox['y2']) / 2
+            bbox = tracking["bbox"]
+            center_x = (bbox["x1"] + bbox["x2"]) / 2
+            center_y = (bbox["y1"] + bbox["y2"]) / 2
 
-            centers.append({
-                'center_x': center_x,
-                'center_y': center_y,
-                'track_id': tracking['track_id'],
-                'confidence': tracking['confidence']
-            })
+            centers.append(
+                {
+                    "center_x": center_x,
+                    "center_y": center_y,
+                    "track_id": tracking["track_id"],
+                    "confidence": tracking["confidence"],
+                }
+            )
 
         return centers
 
@@ -219,7 +235,7 @@ class YOLOTrackingService:
         Args:
             tracker: 'botsort.yaml' or 'bytetrack.yaml'
         """
-        if tracker in ['botsort.yaml', 'bytetrack.yaml']:
+        if tracker in ["botsort.yaml", "bytetrack.yaml"]:
             self.tracker = tracker
             logger.info(f"Tracker switched to {tracker}")
         else:
@@ -238,13 +254,15 @@ class YOLODetectionService(YOLOTrackingService):
         """Legacy detection method"""
         return self.track_persons_from_file(image_path, persist=False)
 
-    def get_person_centers(self, detections: List[Dict[str, Any]]) -> List[Tuple[float, float]]:
+    def get_person_centers(
+        self, detections: List[Dict[str, Any]]
+    ) -> List[Tuple[float, float]]:
         """Legacy center calculation"""
         centers = []
         for detection in detections:
-            bbox = detection['bbox']
-            center_x = (bbox['x1'] + bbox['x2']) / 2
-            center_y = (bbox['y1'] + bbox['y2']) / 2
+            bbox = detection["bbox"]
+            center_x = (bbox["x1"] + bbox["x2"]) / 2
+            center_y = (bbox["y1"] + bbox["y2"]) / 2
             centers.append((center_x, center_y))
         return centers
 
