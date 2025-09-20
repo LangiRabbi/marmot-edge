@@ -53,6 +53,9 @@ export function VideoPlayer({
   const [isLoading, setIsLoading] = useState(false);
   const [usingFallback, setUsingFallback] = useState(false);
   const [currentSrc, setCurrentSrc] = useState(src);
+  const [showControls, setShowControls] = useState(true);
+  const [isHoveringControls, setIsHoveringControls] = useState(false);
+  const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Cleanup HLS instance
   const cleanupHls = () => {
@@ -199,6 +202,51 @@ export function VideoPlayer({
     };
   }, [currentSrc, sourceType, width, height, fallbackSrc, usingFallback]); // React to currentSrc changes for fallback functionality
 
+  // Auto-hide controls logic
+  const resetControlsTimer = useCallback(() => {
+    if (controlsTimeoutRef.current) {
+      clearTimeout(controlsTimeoutRef.current);
+    }
+    setShowControls(true);
+
+    // Don't auto-hide if we're in drawing/edit mode or hovering controls
+    if (isDrawingMode || isEditMode || isHoveringControls) {
+      return;
+    }
+
+    controlsTimeoutRef.current = setTimeout(() => {
+      setShowControls(false);
+    }, 3000);
+  }, [isDrawingMode, isEditMode, isHoveringControls]);
+
+  // Hide controls immediately when in drawing/edit mode
+  useEffect(() => {
+    if (isDrawingMode || isEditMode) {
+      setShowControls(false);
+      if (controlsTimeoutRef.current) {
+        clearTimeout(controlsTimeoutRef.current);
+      }
+    } else {
+      resetControlsTimer();
+    }
+  }, [isDrawingMode, isEditMode, resetControlsTimer]);
+
+  // Handle mouse movement to show controls
+  const handleMouseMove = useCallback(() => {
+    if (!isDrawingMode && !isEditMode) {
+      resetControlsTimer();
+    }
+  }, [isDrawingMode, isEditMode, resetControlsTimer]);
+
+  // Cleanup timer on unmount
+  useEffect(() => {
+    return () => {
+      if (controlsTimeoutRef.current) {
+        clearTimeout(controlsTimeoutRef.current);
+      }
+    };
+  }, []);
+
   // Handle play/pause
   const togglePlay = async () => {
     const video = videoRef.current;
@@ -239,7 +287,10 @@ export function VideoPlayer({
   };
 
   return (
-    <div className={`relative bg-black rounded-lg overflow-hidden ${className}`}>
+    <div
+      className={`relative bg-black rounded-lg overflow-hidden ${className}`}
+      onMouseMove={handleMouseMove}
+    >
       {/* Video Element */}
       <video
         ref={videoRef}
@@ -285,8 +336,14 @@ export function VideoPlayer({
       )}
 
       {/* Custom Controls */}
-      {controls && !error && (
-        <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white p-4 z-20">
+      {controls && !error && showControls && (
+        <div
+          className={`absolute bottom-0 left-0 right-0 bg-black/50 text-white p-4 z-20 transition-opacity duration-300 ${
+            showControls ? 'opacity-100' : 'opacity-0 pointer-events-none'
+          }`}
+          onMouseEnter={() => setIsHoveringControls(true)}
+          onMouseLeave={() => setIsHoveringControls(false)}
+        >
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
               <Button

@@ -195,9 +195,13 @@ export function WorkstationDetailsModal({ open, onOpenChange, workstation, video
   };
 
   const handleToggleZoneOverlay = () => {
-    setShowZoneOverlay(!showZoneOverlay);
-    if (isDrawingMode && !showZoneOverlay) {
+    const newShowZoneOverlay = !showZoneOverlay;
+    setShowZoneOverlay(newShowZoneOverlay);
+
+    // Exit drawing and edit modes when zones are hidden
+    if (!newShowZoneOverlay) {
       setIsDrawingMode(false);
+      setIsEditMode(false);
     }
   };
 

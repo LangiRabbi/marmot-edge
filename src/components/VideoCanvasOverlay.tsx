@@ -556,7 +556,13 @@ export function VideoCanvasOverlay({
   return (
     <div
       ref={containerRef}
-      className="absolute inset-0 z-10"
+      className={`absolute inset-0 ${
+        isDrawingMode || isEditMode ? 'z-30' : 'z-10'
+      } ${
+        isDrawingMode || isEditMode
+          ? 'ring-2 ring-primary/30 ring-inset shadow-lg shadow-primary/10'
+          : ''
+      } transition-all duration-200`}
       style={{ width, height }}
     >
       <canvas
