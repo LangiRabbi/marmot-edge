@@ -556,20 +556,19 @@ export function VideoCanvasOverlay({
   return (
     <div
       ref={containerRef}
-      className={`absolute inset-0 ${
+      className={`absolute inset-0 rounded-lg overflow-hidden ${
         isDrawingMode || isEditMode ? 'z-30' : 'z-10'
       } ${
         isDrawingMode || isEditMode
           ? 'ring-2 ring-primary/30 ring-inset shadow-lg shadow-primary/10'
           : ''
       } transition-all duration-200`}
-      style={{ width, height }}
     >
       <canvas
         ref={canvasRef}
         width={width}
         height={height}
-        className="absolute inset-0"
+        className="absolute inset-0 w-full h-full rounded-lg"
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
