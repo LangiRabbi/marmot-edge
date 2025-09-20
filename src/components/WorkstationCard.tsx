@@ -88,25 +88,21 @@ export function WorkstationCard({
   };
 
   const handleRemove = () => {
-    setShowDeleteDialog(true);
+    setShowDetailsModal(false);  // Close details modal before delete
+    setShowEditModal(false);      // Close edit modal before delete
+    setShowDeleteDialog(true);     // Show delete confirmation dialog
   };
 
 
   const confirmRemove = () => {
     onRemove?.(id);
     setShowDeleteDialog(false);
-    toast({
-      title: "Workstation Removed",
-      description: `${name} has been removed successfully.`,
-    });
+    // Toast removed - WorkstationsSection already shows toast after successful deletion
   };
 
   const handleSaveEdit = (newName: string) => {
     onEdit?.(id, newName);
-    toast({
-      title: "Workstation Updated",
-      description: `Workstation renamed to ${newName}.`,
-    });
+    // Toast removed - WorkstationsSection already shows toast after successful update
   };
 
   return (

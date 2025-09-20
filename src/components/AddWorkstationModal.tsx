@@ -50,6 +50,37 @@ export function AddWorkstationModal({ open, onOpenChange, onAddWorkstation }: Ad
   const [isTestingRtsp, setIsTestingRtsp] = useState(false);
   const [rtspTestResult, setRtspTestResult] = useState<{ success: boolean; message: string } | null>(null);
 
+  // Camera preview functions
+  const stopCameraPreview = useCallback(() => {
+    if (previewStream) {
+      previewStream.getTracks().forEach(track => track.stop());
+      setPreviewStream(null);
+    }
+    if (previewVideoRef.current) {
+      previewVideoRef.current.srcObject = null;
+    }
+  }, [previewStream]);
+
+  const enumerateUsbCameras = useCallback(async () => {
+    setIsLoadingCameras(true);
+    try {
+      // Request permission first
+      await navigator.mediaDevices.getUserMedia({ video: true });
+
+      // Get all media devices
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const videoDevices = devices.filter(device => device.kind === 'videoinput');
+
+      setUsbCameras(videoDevices);
+      console.log('Found USB cameras:', videoDevices);
+    } catch (error) {
+      console.error('Failed to enumerate cameras:', error);
+      setUsbCameras([]);
+    } finally {
+      setIsLoadingCameras(false);
+    }
+  }, []);
+
   // Reset file input when modal closes or opens
   useEffect(() => {
     if (!open) {
@@ -102,25 +133,6 @@ export function AddWorkstationModal({ open, onOpenChange, onAddWorkstation }: Ad
   };
 
   // USB Camera functions
-  const enumerateUsbCameras = useCallback(async () => {
-    setIsLoadingCameras(true);
-    try {
-      // Request permission first
-      await navigator.mediaDevices.getUserMedia({ video: true });
-
-      // Get all media devices
-      const devices = await navigator.mediaDevices.enumerateDevices();
-      const videoDevices = devices.filter(device => device.kind === 'videoinput');
-
-      setUsbCameras(videoDevices);
-      console.log('Found USB cameras:', videoDevices);
-    } catch (error) {
-      console.error('Failed to enumerate cameras:', error);
-      setUsbCameras([]);
-    } finally {
-      setIsLoadingCameras(false);
-    }
-  }, []);
 
   const startCameraPreview = async (deviceId: string) => {
     try {
@@ -149,15 +161,6 @@ export function AddWorkstationModal({ open, onOpenChange, onAddWorkstation }: Ad
     }
   };
 
-  const stopCameraPreview = useCallback(() => {
-    if (previewStream) {
-      previewStream.getTracks().forEach(track => track.stop());
-      setPreviewStream(null);
-    }
-    if (previewVideoRef.current) {
-      previewVideoRef.current.srcObject = null;
-    }
-  }, [previewStream]);
 
   // RTSP testing function
   const testRtspConnection = async () => {
@@ -180,7 +183,7 @@ export function AddWorkstationModal({ open, onOpenChange, onAddWorkstation }: Ad
   };
 
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     // Validate file size (500MB limit)
@@ -194,12 +197,29 @@ export function AddWorkstationModal({ open, onOpenChange, onAddWorkstation }: Ad
     const isFormValid = formData.name.trim() && (!isIpRequired || formData.ipAddress.trim());
 
     if (isFormValid) {
+      let filePath: string | undefined;
+
+      // Convert file to base64 data URL for persistent storage
+      if (videoSource === 'file' && uploadedFile) {
+        try {
+          filePath = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result as string);
+            reader.onerror = reject;
+            reader.readAsDataURL(uploadedFile);
+          });
+        } catch (error) {
+          alert('Failed to process file. Please try again.');
+          return;
+        }
+      }
+
       const videoConfig: VideoSourceConfig = {
         type: videoSource,
         url: videoSource === 'rtsp' ? rtspUrl : undefined,
         usbDeviceId: videoSource === 'usb' ? selectedUsbDevice : undefined,
         fileName: videoSource === 'file' ? uploadedFile?.name : undefined,
-        filePath: videoSource === 'file' && uploadedFile ? URL.createObjectURL(uploadedFile) : undefined
+        filePath: filePath
       };
 
       onAddWorkstation(formData.name.trim(), formData.ipAddress.trim(), videoConfig);

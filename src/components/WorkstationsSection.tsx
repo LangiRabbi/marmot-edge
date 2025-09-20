@@ -24,13 +24,13 @@ export function WorkstationsSection() {
       workstationService.createWorkstation(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['workstations'] });
-      setShowAddModal(false);
       toast({
         title: "Workstation Added",
         description: "Workstation has been successfully added to the system.",
       });
     },
     onError: (error) => {
+      setShowAddModal(true);  // Reopen modal only on error
       toast({
         title: "Error",
         description: "Failed to add workstation. Please try again.",
@@ -82,6 +82,7 @@ export function WorkstationsSection() {
   });
 
   const handleAddWorkstation = (name: string, ipAddress: string, videoConfig?: VideoSourceConfig) => {
+    setShowAddModal(false);  // Close modal IMMEDIATELY
     createMutation.mutate({
       name,
       location: ipAddress || 'N/A', // Use ipAddress as location for now

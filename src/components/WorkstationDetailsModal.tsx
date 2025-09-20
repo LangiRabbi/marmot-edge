@@ -115,9 +115,10 @@ export function WorkstationDetailsModal({ open, onOpenChange, workstation, video
         };
       }
       case 'rtsp':
+        // Use test HLS stream since RTSP URLs don't work in browser
         return {
-          src: videoConfig.url || "",
-          sourceType: "rtsp" as const
+          src: "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8",
+          sourceType: "hls" as const
         };
       case 'usb':
         return {

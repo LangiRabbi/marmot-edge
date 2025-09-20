@@ -27,7 +27,7 @@ interface VideoPlayerModalProps {
 
 // Test video sources for development
 const TEST_SOURCES = {
-  hls: "https://demo.unified-streaming.com/k8s/features/stable/video/tears-of-steel/tears-of-steel.ism/.m3u8",
+  hls: "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8", // Better HLS source
   mp4: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
   rtsp: "rtsp://wowzaec2demo.streamlock.net/vod/mp4:BigBuckBunny_115k.mp4" // Example RTSP (converted to HLS)
 };
@@ -52,8 +52,8 @@ export function VideoPlayerModal({
     switch (videoConfig.type) {
       case 'rtsp':
         // In production, this would be converted to HLS by media server
-        // For now, use test HLS stream
-        return { src: videoConfig.url || TEST_SOURCES.hls, type: 'hls' };
+        // For now, use test HLS stream as fallback since RTSP URLs don't work in browser
+        return { src: TEST_SOURCES.hls, type: 'hls' };
 
       case 'usb':
         return { src: videoConfig.usbDeviceId || '', type: 'usb' };
@@ -71,6 +71,9 @@ export function VideoPlayerModal({
   };
 
   const { src, type } = getVideoSource();
+
+  // Debug log to see what we're actually passing
+  console.log('VideoPlayerModal - src:', src, 'type:', type, 'videoConfig:', videoConfig);
 
   const handleLoadSuccess = () => {
     setConnectionStatus('connected');

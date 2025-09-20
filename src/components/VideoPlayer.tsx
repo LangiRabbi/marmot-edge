@@ -125,7 +125,9 @@ export function VideoPlayer({
 
           hlsRef.current.on(Hls.Events.MANIFEST_PARSED, handleLoadSuccess);
           hlsRef.current.on(Hls.Events.ERROR, (event, data) => {
-            if (data.fatal) {
+            if (data.fatal && data.type === Hls.ErrorTypes.NETWORK_ERROR) {
+              handleLoadError(`HLS Network Error: ${data.details}`);
+            } else if (data.fatal) {
               handleLoadError(`HLS Error: ${data.details}`);
             }
           });
@@ -193,7 +195,7 @@ export function VideoPlayer({
         video.load();
       }
     };
-  }, [currentSrc, sourceType, width, height, fallbackSrc, usingFallback, onLoadError, handleLoadSuccessCallback]); // React to currentSrc changes for fallback functionality
+  }, [currentSrc, sourceType, width, height, fallbackSrc, usingFallback]); // React to currentSrc changes for fallback functionality
 
   // Handle play/pause
   const togglePlay = async () => {
