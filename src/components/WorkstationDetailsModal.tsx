@@ -374,7 +374,7 @@ export function WorkstationDetailsModal({ open, onOpenChange, workstation, video
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl bg-background border-border" onClick={(e) => e.stopPropagation()}>
+      <DialogContent className="max-w-7xl bg-background border-border" onClick={(e) => e.stopPropagation()}>
         <DialogHeader>
           <div className="flex items-start justify-between pr-8">
             <DialogTitle className="text-xl font-bold text-foreground flex items-center gap-2">
@@ -398,40 +398,31 @@ export function WorkstationDetailsModal({ open, onOpenChange, workstation, video
           </DialogDescription>
         </DialogHeader>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-[7fr_3fr] gap-6">
           {/* Live Camera Feed */}
           <div className="space-y-4">
-            <div className="flex items-center gap-2">
-              <Camera className="h-5 w-5 text-foreground" />
-              <h3 className="text-lg font-semibold text-foreground">Live Camera Feed</h3>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Camera className="h-5 w-5 text-foreground" />
+                <h3 className="text-lg font-semibold text-foreground">Live Camera Feed</h3>
+              </div>
+              {showVideoPlayer && (
+                <Button
+                  variant={showZoneOverlay ? "default" : "outline"}
+                  size="sm"
+                  onClick={handleToggleZoneOverlay}
+                  className="text-xs"
+                >
+                  <Target className="h-3 w-3 mr-1" />
+                  {showZoneOverlay ? "Hide Zones" : "Show Zones"}
+                </Button>
+              )}
             </div>
             
             {showVideoPlayer ? (
               <div className="space-y-3">
                 {/* Zone Controls */}
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant={showZoneOverlay ? "default" : "outline"}
-                      size="sm"
-                      onClick={handleToggleZoneOverlay}
-                      className="text-xs"
-                    >
-                      <Target className="h-3 w-3 mr-1" />
-                      {showZoneOverlay ? "Hide Zones" : "Show Zones"}
-                    </Button>
-                    {showZoneOverlay && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handleExportYOLOData}
-                        className="text-xs"
-                      >
-                        <Download className="h-3 w-3 mr-1" />
-                        Export YOLO
-                      </Button>
-                    )}
-                  </div>
                   {isDrawingMode && (
                     <div className="text-xs text-muted-foreground flex items-center gap-1">
                       <div className="w-2 h-2 bg-primary rounded-full animate-pulse"></div>
@@ -446,8 +437,8 @@ export function WorkstationDetailsModal({ open, onOpenChange, workstation, video
                     src={getVideoSource().src}
                     sourceType={getVideoSource().sourceType}
                     fallbackSrc={getVideoSource().fallbackSrc}
-                    width={400}
-                    height={300}
+                    width={800}
+                    height={450}
                     autoPlay={true}
                     controls={true}
                     className="w-full"
@@ -485,22 +476,28 @@ export function WorkstationDetailsModal({ open, onOpenChange, workstation, video
               </div>
             )}
 
-            {/* Stats Grid */}
-            <div className="grid grid-cols-3 gap-4 mt-6">
-              <div className="text-center p-4 bg-muted/20 rounded-lg border border-border">
-                <Clock className="h-6 w-6 text-primary mx-auto mb-2" />
-                <p className="text-sm text-muted-foreground">Uptime</p>
-                <p className="text-lg font-semibold text-foreground">156h</p>
+            {/* Stats Grid - Horizontal Layout */}
+            <div className="grid grid-cols-3 gap-3 mt-6">
+              <div className="flex items-center gap-3 p-3 bg-muted/20 rounded-lg border border-border">
+                <Clock className="h-5 w-5 text-primary" />
+                <div className="flex-1 text-center">
+                  <p className="text-sm text-muted-foreground">Uptime</p>
+                  <p className="text-lg font-semibold text-foreground">156h</p>
+                </div>
               </div>
-              <div className="text-center p-4 bg-muted/20 rounded-lg border border-border">
-                <Activity className="h-6 w-6 text-success mx-auto mb-2" />
-                <p className="text-sm text-muted-foreground">Cycles</p>
-                <p className="text-lg font-semibold text-foreground">234</p>
+              <div className="flex items-center gap-3 p-3 bg-muted/20 rounded-lg border border-border">
+                <Activity className="h-5 w-5 text-success" />
+                <div className="flex-1 text-center">
+                  <p className="text-sm text-muted-foreground">Cycles</p>
+                  <p className="text-lg font-semibold text-foreground">234</p>
+                </div>
               </div>
-              <div className="text-center p-4 bg-muted/20 rounded-lg border border-border">
-                <Zap className="h-6 w-6 text-warning mx-auto mb-2" />
-                <p className="text-sm text-muted-foreground">Efficiency</p>
-                <p className="text-lg font-semibold text-foreground">{workstation.efficiency}%</p>
+              <div className="flex items-center gap-3 p-3 bg-muted/20 rounded-lg border border-border">
+                <Zap className="h-5 w-5 text-warning" />
+                <div className="flex-1 text-center">
+                  <p className="text-sm text-muted-foreground">Efficiency</p>
+                  <p className="text-lg font-semibold text-foreground">{workstation.efficiency}%</p>
+                </div>
               </div>
             </div>
           </div>
