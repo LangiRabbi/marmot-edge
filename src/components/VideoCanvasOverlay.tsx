@@ -536,10 +536,6 @@ export function VideoCanvasOverlay({
     drawCanvas();
   }, [width, height, drawCanvas]);
 
-  // Force redraw when component mounts or zones change
-  useEffect(() => {
-    drawCanvas();
-  }, [zones, selectedZone, isDrawingMode, drawingState, dragState]);
 
   // Click outside to close context menu
   useEffect(() => {

@@ -60,6 +60,11 @@ export function VideoPlayer({
     }
   };
 
+  // Memoize onLoadSuccess callback to prevent unnecessary re-renders
+  const handleLoadSuccessCallback = useCallback(() => {
+    if (onLoadSuccess) onLoadSuccess();
+  }, [onLoadSuccess]);
+
   // Reset fallback state when src changes
   useEffect(() => {
     setCurrentSrc(src);
@@ -82,7 +87,7 @@ export function VideoPlayer({
       if (!isMounted) return; // Prevent calls after cleanup
       console.log('Video loaded successfully');
       setIsLoading(false);
-      if (onLoadSuccess) onLoadSuccess();
+      handleLoadSuccessCallback();
     };
 
     const handleLoadError = (errorMsg: string) => {
@@ -188,7 +193,7 @@ export function VideoPlayer({
         video.load();
       }
     };
-  }, [currentSrc, sourceType]); // React to currentSrc changes for fallback functionality
+  }, [currentSrc, sourceType, width, height, fallbackSrc, usingFallback, onLoadError, handleLoadSuccessCallback]); // React to currentSrc changes for fallback functionality
 
   // Handle play/pause
   const togglePlay = async () => {

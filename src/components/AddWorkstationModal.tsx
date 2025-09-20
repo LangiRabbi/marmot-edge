@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Loader2, Search, Monitor, Camera, Video, Upload } from "lucide-react";
 import {
@@ -71,17 +71,18 @@ export function AddWorkstationModal({ open, onOpenChange, onAddWorkstation }: Ad
       setIsTestingRtsp(false);
       setRtspTestResult(null);
     }
-  }, [open]);
+  }, [open, stopCameraPreview]);
 
   // Additional cleanup on component unmount
   useEffect(() => {
+    const currentFileInput = fileInputRef.current;
     return () => {
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
+      if (currentFileInput) {
+        currentFileInput.value = '';
       }
       stopCameraPreview();
     };
-  }, []);
+  }, [stopCameraPreview]);
 
   // Load USB cameras when USB source is selected
   useEffect(() => {
@@ -90,7 +91,7 @@ export function AddWorkstationModal({ open, onOpenChange, onAddWorkstation }: Ad
     } else {
       stopCameraPreview();
     }
-  }, [videoSource, open]);
+  }, [videoSource, open, stopCameraPreview, enumerateUsbCameras]);
 
   // Function to reset file input manually
   const resetFileInput = () => {
@@ -101,7 +102,7 @@ export function AddWorkstationModal({ open, onOpenChange, onAddWorkstation }: Ad
   };
 
   // USB Camera functions
-  const enumerateUsbCameras = async () => {
+  const enumerateUsbCameras = useCallback(async () => {
     setIsLoadingCameras(true);
     try {
       // Request permission first
@@ -119,7 +120,7 @@ export function AddWorkstationModal({ open, onOpenChange, onAddWorkstation }: Ad
     } finally {
       setIsLoadingCameras(false);
     }
-  };
+  }, []);
 
   const startCameraPreview = async (deviceId: string) => {
     try {
@@ -148,7 +149,7 @@ export function AddWorkstationModal({ open, onOpenChange, onAddWorkstation }: Ad
     }
   };
 
-  const stopCameraPreview = () => {
+  const stopCameraPreview = useCallback(() => {
     if (previewStream) {
       previewStream.getTracks().forEach(track => track.stop());
       setPreviewStream(null);
@@ -156,7 +157,7 @@ export function AddWorkstationModal({ open, onOpenChange, onAddWorkstation }: Ad
     if (previewVideoRef.current) {
       previewVideoRef.current.srcObject = null;
     }
-  };
+  }, [previewStream]);
 
   // RTSP testing function
   const testRtspConnection = async () => {

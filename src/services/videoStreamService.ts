@@ -1,4 +1,5 @@
 import { apiClient } from './api';
+import type { VideoSourceConfig } from './workstationService';
 
 export interface VideoStream {
   id: number;
@@ -301,7 +302,7 @@ class VideoStreamService {
   convertFromVideoConfig(
     workstationId: number,
     workstationName: string,
-    videoConfig: any
+    videoConfig: VideoSourceConfig
   ): CreateVideoStreamRequest {
     let sourceType: 'rtsp' | 'usb' | 'ip' | 'file' = 'file';
     let sourceUrl = '';
