@@ -413,3 +413,27 @@ async def broadcast_test_message(
             status_code=500,
             detail=f"Broadcast failed: {str(e)}"
         )
+
+
+@router.post("/websocket/clear-connections")
+async def clear_all_connections():
+    """
+    Clear all WebSocket connections from rate limiter.
+
+    ⚠️ Development/debugging only!
+    """
+    try:
+        from app.core.rate_limiting import rate_limiter
+
+        rate_limiter.clear_all_connections()
+
+        return {
+            "success": True,
+            "message": "All connections cleared from rate limiter"
+        }
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Clear failed: {str(e)}"
+        )

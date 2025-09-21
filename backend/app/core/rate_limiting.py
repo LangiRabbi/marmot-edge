@@ -9,7 +9,11 @@ import time
 from collections import defaultdict, deque
 from typing import Dict, Optional
 
+from dotenv import load_dotenv
 from pydantic import BaseModel
+
+# Load environment variables first
+load_dotenv()
 
 # Configuration from environment
 MAX_CONNECTIONS_PER_IP = int(os.getenv("WEBSOCKET_MAX_CONNECTIONS_PER_IP", "5"))
@@ -86,12 +90,14 @@ class RateLimiter:
         Returns:
             RateLimitResult indicating if connection is allowed
         """
+        # Get current limit from environment (allows runtime changes)
+        current_limit = int(os.getenv("WEBSOCKET_MAX_CONNECTIONS_PER_IP", "50"))
         current_connections = len(self.connections_by_ip[ip_address])
 
-        if current_connections >= MAX_CONNECTIONS_PER_IP:
+        if current_connections >= current_limit:
             return RateLimitResult(
                 allowed=False,
-                reason=f"Too many connections from IP {ip_address}: {current_connections}/{MAX_CONNECTIONS_PER_IP}",
+                reason=f"Too many connections from IP {ip_address}: {current_connections}/{current_limit}",
                 retry_after=60
             )
 
@@ -153,6 +159,14 @@ class RateLimiter:
         # Remove message history
         if connection_id in self.message_times:
             del self.message_times[connection_id]
+
+    def clear_all_connections(self):
+        """
+        Clear all connection tracking - useful for debugging.
+        """
+        self.connections.clear()
+        self.connections_by_ip.clear()
+        self.message_times.clear()
 
     def check_message_rate(self, connection_id: str) -> RateLimitResult:
         """
@@ -237,7 +251,7 @@ class RateLimiter:
         return {
             "total_connections": total_connections,
             "connections_by_ip": connections_by_ip,
-            "max_connections_per_ip": MAX_CONNECTIONS_PER_IP,
+            "max_connections_per_ip": int(os.getenv("WEBSOCKET_MAX_CONNECTIONS_PER_IP", "50")),
             "message_rate_limit": MESSAGE_RATE_LIMIT,
             "messages_last_minute": total_messages_last_minute,
             "avg_messages_per_connection": (

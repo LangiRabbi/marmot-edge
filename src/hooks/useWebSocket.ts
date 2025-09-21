@@ -207,6 +207,13 @@ export function useWebSocket(options: UseWebSocketOptions = {}): UseWebSocketRet
   // Auto-connect effect
   useEffect(() => {
     if (autoConnect && workstationId && connectionState === 'disconnected') {
+      // Check if WebSocket service is already connected to the same workstation
+      const connectionInfo = websocketService.getConnectionInfo();
+      if (connectionInfo.currentWorkstationId === workstationId && connectionInfo.isConnected) {
+        console.log(`WebSocket already connected to ${workstationId}, skipping auto-connect`);
+        return;
+      }
+
       connect(workstationId);
     }
   }, [autoConnect, workstationId, connectionState, connect]);

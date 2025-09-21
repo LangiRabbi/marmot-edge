@@ -68,7 +68,11 @@
       "Bash(pip install:*)",
       "Bash(uvicorn:*)",
       "Bash(start http://localhost:8001/api/v1/websocket/demo)",
-      "Bash(start http://localhost:8081)"
+      "Bash(start http://localhost:8081)",
+      "Bash(pkill:*)",
+      "Bash(taskkill:*)",
+      "Bash(echo $WEBSOCKET_MAX_CONNECTIONS_PER_IP)",
+      "Bash(set WEBSOCKET_MAX_CONNECTIONS_PER_IP=20)"
     ],
     "deny": [],
     "ask": []
