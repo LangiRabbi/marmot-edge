@@ -1,4 +1,4 @@
-import { Camera, Clock, Activity, Zap, MapPin, Download, Edit3, Trash2, Plus, MoreHorizontal, Target, Lock, Unlock } from "lucide-react";
+import { Camera, Clock, Activity, Zap, MapPin, Download, Edit3, Trash2, Plus, MoreHorizontal, Target, Lock, Unlock, Wifi } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -17,9 +17,12 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { VideoPlayer } from "./VideoPlayer";
 import { Zone } from "./VideoCanvasOverlay";
+import { ConnectionStatus } from "./ConnectionStatus";
 import { useState, useEffect } from "react";
 import type { VideoSourceConfig } from "@/services/workstationService";
 import { zoneService, type CanvasZone } from "@/services/zoneService";
+import { useWorkstationWebSocket } from "@/hooks/useWebSocket";
+import type { DetectionUpdateMessage, ZoneUpdateMessage, EfficiencyUpdateMessage } from "@/services/websocketService";
 
 interface WorkstationDetailsModalProps {
   open: boolean;
@@ -46,6 +49,28 @@ export function WorkstationDetailsModal({ open, onOpenChange, workstation, video
   const [isLoadingZones, setIsLoadingZones] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
 
+  // WebSocket integration
+  const {
+    connectionState,
+    isConnected,
+    error: wsError,
+    connect: wsConnect,
+    disconnect: wsDisconnect,
+    latestDetection,
+    latestZoneUpdate,
+    latestEfficiency,
+    totalMessages,
+    messagesPerSecond
+  } = useWorkstationWebSocket(workstation.id.toString(), {
+    autoConnect: false, // Manual connection control
+    subscriptionTypes: ['all']
+  });
+
+  // Real-time data state
+  const [realtimePersonCount, setRealtimePersonCount] = useState<number>(workstation.peopleCount);
+  const [realtimeEfficiency, setRealtimeEfficiency] = useState<number>(workstation.efficiency);
+  const [realtimeZoneData, setRealtimeZoneData] = useState<Record<string, { count: number; status: string }>>({});
+
   // Reset state when modal opens/closes
   useEffect(() => {
     if (!open) {
@@ -54,8 +79,67 @@ export function WorkstationDetailsModal({ open, onOpenChange, workstation, video
       setEditingZone(null);
       setEditingName('');
       setIsEditMode(false);
+      // Don't explicitly disconnect - let reference counting handle it
+    } else {
+      // Connect WebSocket when modal opens
+      wsConnect(workstation.id.toString());
     }
-  }, [open]);
+  }, [open, workstation.id, wsConnect]);
+
+  // Handle real-time detection updates
+  useEffect(() => {
+    if (latestDetection) {
+      setRealtimePersonCount(latestDetection.person_count);
+
+      // Show notification for significant changes
+      if (Math.abs(latestDetection.person_count - workstation.peopleCount) > 1) {
+        toast({
+          title: "Person Count Updated",
+          description: `${latestDetection.person_count} person(s) detected in real-time`,
+        });
+      }
+    }
+  }, [latestDetection, workstation.peopleCount, toast]);
+
+  // Handle real-time zone updates
+  useEffect(() => {
+    if (latestZoneUpdate) {
+      const zoneData: Record<string, { count: number; status: string }> = {};
+
+      latestZoneUpdate.zones.forEach(zone => {
+        zoneData[zone.zone_id] = {
+          count: zone.person_count,
+          status: zone.person_count > 0 ? 'Work' : 'Idle'
+        };
+      });
+
+      setRealtimeZoneData(zoneData);
+
+      // Update zone statuses in the zones array
+      setZones(prevZones =>
+        prevZones.map(zone => ({
+          ...zone,
+          status: zoneData[zone.id]?.status || 'Idle'
+        }))
+      );
+    }
+  }, [latestZoneUpdate]);
+
+  // Handle real-time efficiency updates
+  useEffect(() => {
+    if (latestEfficiency) {
+      const newEfficiency = latestEfficiency.metrics.efficiency_percentage;
+      setRealtimeEfficiency(newEfficiency);
+
+      // Show notification for significant efficiency changes
+      if (Math.abs(newEfficiency - workstation.efficiency) > 10) {
+        toast({
+          title: "Efficiency Updated",
+          description: `Efficiency: ${newEfficiency.toFixed(1)}% (${latestEfficiency.metrics.current_state})`,
+        });
+      }
+    }
+  }, [latestEfficiency, workstation.efficiency, toast]);
 
   // Load zones from backend when modal opens
   useEffect(() => {
@@ -395,12 +479,24 @@ export function WorkstationDetailsModal({ open, onOpenChange, workstation, video
       <DialogContent className="max-w-7xl bg-background border-border" onClick={(e) => e.stopPropagation()}>
         <DialogHeader>
           <div className="flex items-start justify-between pr-8">
-            <DialogTitle className="text-xl font-bold text-foreground flex items-center gap-2">
-              {workstation.name}
-              <span className={`text-sm font-medium ${getStatusColor()}`}>
-                {workstation.status ? workstation.status.charAt(0).toUpperCase() + workstation.status.slice(1) : 'Unknown'}
-              </span>
-            </DialogTitle>
+            <div className="flex flex-col gap-2">
+              <DialogTitle className="text-xl font-bold text-foreground flex items-center gap-2">
+                {workstation.name}
+                <span className={`text-sm font-medium ${getStatusColor()}`}>
+                  {workstation.status ? workstation.status.charAt(0).toUpperCase() + workstation.status.slice(1) : 'Unknown'}
+                </span>
+              </DialogTitle>
+              <ConnectionStatus
+                connectionState={connectionState}
+                isConnected={isConnected}
+                error={wsError}
+                totalMessages={totalMessages}
+                messagesPerSecond={messagesPerSecond}
+                onReconnect={() => wsConnect(workstation.id.toString())}
+                showDetails={true}
+                className="max-w-md"
+              />
+            </div>
             <Button
               variant="outline"
               size="sm"
@@ -508,27 +604,46 @@ export function WorkstationDetailsModal({ open, onOpenChange, workstation, video
               </div>
             </div>
 
-            {/* Stats Grid - Horizontal Layout */}
-            <div className="grid grid-cols-3 gap-3 mt-6">
+            {/* Stats Grid - Real-time Data */}
+            <div className="grid grid-cols-4 gap-3 mt-6">
               <div className="flex items-center gap-3 p-3 bg-muted/20 rounded-lg border border-border">
-                <Clock className="h-5 w-5 text-primary" />
+                <Activity className="h-5 w-5 text-primary" />
                 <div className="flex-1 text-center">
-                  <p className="text-sm text-muted-foreground">Uptime</p>
-                  <p className="text-lg font-semibold text-foreground">156h</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3 p-3 bg-muted/20 rounded-lg border border-border">
-                <Activity className="h-5 w-5 text-success" />
-                <div className="flex-1 text-center">
-                  <p className="text-sm text-muted-foreground">Cycles</p>
-                  <p className="text-lg font-semibold text-foreground">234</p>
+                  <p className="text-sm text-muted-foreground">People</p>
+                  <p className="text-lg font-semibold text-foreground flex items-center justify-center gap-1">
+                    {realtimePersonCount}
+                    {isConnected && (
+                      <span className="h-2 w-2 bg-green-500 rounded-full animate-pulse"></span>
+                    )}
+                  </p>
                 </div>
               </div>
               <div className="flex items-center gap-3 p-3 bg-muted/20 rounded-lg border border-border">
                 <Zap className="h-5 w-5 text-warning" />
                 <div className="flex-1 text-center">
                   <p className="text-sm text-muted-foreground">Efficiency</p>
-                  <p className="text-lg font-semibold text-foreground">{workstation.efficiency}%</p>
+                  <p className="text-lg font-semibold text-foreground flex items-center justify-center gap-1">
+                    {realtimeEfficiency.toFixed(1)}%
+                    {isConnected && (
+                      <span className="h-2 w-2 bg-green-500 rounded-full animate-pulse"></span>
+                    )}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 p-3 bg-muted/20 rounded-lg border border-border">
+                <Clock className="h-5 w-5 text-blue-500" />
+                <div className="flex-1 text-center">
+                  <p className="text-sm text-muted-foreground">Uptime</p>
+                  <p className="text-lg font-semibold text-foreground">156h</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 p-3 bg-muted/20 rounded-lg border border-border">
+                <Wifi className="h-5 w-5 text-green-500" />
+                <div className="flex-1 text-center">
+                  <p className="text-sm text-muted-foreground">Data Rate</p>
+                  <p className="text-lg font-semibold text-foreground">
+                    {messagesPerSecond.toFixed(1)}/s
+                  </p>
                 </div>
               </div>
             </div>

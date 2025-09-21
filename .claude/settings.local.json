@@ -64,7 +64,11 @@
       "mcp__playwright__browser_drag",
       "mcp__playwright__browser_evaluate",
       "Bash(git tag:*)",
-      "Bash(gh api:*)"
+      "Bash(gh api:*)",
+      "Bash(pip install:*)",
+      "Bash(uvicorn:*)",
+      "Bash(start http://localhost:8001/api/v1/websocket/demo)",
+      "Bash(start http://localhost:8081)"
     ],
     "deny": [],
     "ask": []

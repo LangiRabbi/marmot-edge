@@ -1,3 +1,4 @@
+import asyncio
 import os
 import signal
 import sys
@@ -8,11 +9,12 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 # Import API routers
-from app.api.v1 import detection, seed, video_streams, workstations, zones
+from app.api.v1 import detection, seed, video_streams, workstations, zones, websocket
 
 # Import services for graceful shutdown
 from app.services.video_service import get_video_manager
 from app.workers.video_processor import get_video_processor
+from app.core.rate_limiting import rate_limiter
 
 # Load environment variables
 load_dotenv()
@@ -22,6 +24,10 @@ load_dotenv()
 async def lifespan(app: FastAPI):
     # Startup
     print("Starting Marmot Industrial Monitoring System...")
+
+    # Start rate limiter
+    await rate_limiter.start()
+    print("Rate limiter started")
 
     # Setup graceful shutdown handlers
     def signal_handler(signum, frame):
@@ -37,6 +43,9 @@ async def lifespan(app: FastAPI):
 
             print("Shutting down video manager...")
             video_manager.shutdown()
+
+            print("Shutting down rate limiter...")
+            asyncio.run(rate_limiter.stop())
 
             print("Graceful shutdown completed")
         except Exception as e:
@@ -57,6 +66,10 @@ async def lifespan(app: FastAPI):
         video_manager = get_video_manager()
         video_processor.shutdown()
         video_manager.shutdown()
+
+        # Stop rate limiter
+        await rate_limiter.stop()
+        print("Rate limiter stopped")
     except Exception as e:
         print(f"Error during lifespan shutdown: {e}")
 
@@ -93,6 +106,7 @@ app.include_router(zones.router, prefix="/api/v1/zones", tags=["zones"])
 app.include_router(seed.router, prefix="/api/v1/seed", tags=["seed"])
 app.include_router(detection.router, prefix="/api/v1/detection", tags=["detection"])
 app.include_router(video_streams.router, prefix="/api/v1", tags=["video-streams"])
+app.include_router(websocket.router, prefix="/api/v1", tags=["websocket"])
 
 
 @app.get("/")
