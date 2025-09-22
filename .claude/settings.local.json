@@ -73,7 +73,8 @@
       "Bash(taskkill:*)",
       "Bash(echo $WEBSOCKET_MAX_CONNECTIONS_PER_IP)",
       "Bash(set WEBSOCKET_MAX_CONNECTIONS_PER_IP=20)",
-      "Bash(PYTHONPATH=. python:*)"
+      "Bash(PYTHONPATH=. python:*)",
+      "Bash(npm run build:*)"
     ],
     "deny": [],
     "ask": []

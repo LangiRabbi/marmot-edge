@@ -24,6 +24,7 @@ CLEANUP_INTERVAL = 300  # 5 minutes
 
 class ConnectionInfo(BaseModel):
     """Information about a WebSocket connection."""
+
     connection_id: str
     ip_address: str
     user_id: Optional[str] = None
@@ -34,6 +35,7 @@ class ConnectionInfo(BaseModel):
 
 class RateLimitResult(BaseModel):
     """Result of rate limit check."""
+
     allowed: bool
     reason: Optional[str] = None
     retry_after: Optional[int] = None
@@ -53,10 +55,14 @@ class RateLimiter:
     def __init__(self):
         # Connection tracking
         self.connections: Dict[str, ConnectionInfo] = {}  # connection_id -> info
-        self.connections_by_ip: Dict[str, set] = defaultdict(set)  # ip -> connection_ids
+        self.connections_by_ip: Dict[str, set] = defaultdict(
+            set
+        )  # ip -> connection_ids
 
         # Message rate tracking (sliding window)
-        self.message_times: Dict[str, deque] = defaultdict(deque)  # connection_id -> timestamps
+        self.message_times: Dict[str, deque] = defaultdict(
+            deque
+        )  # connection_id -> timestamps
 
         # Cleanup task
         self.cleanup_task: Optional[asyncio.Task] = None
@@ -98,12 +104,14 @@ class RateLimiter:
             return RateLimitResult(
                 allowed=False,
                 reason=f"Too many connections from IP {ip_address}: {current_connections}/{current_limit}",
-                retry_after=60
+                retry_after=60,
             )
 
         return RateLimitResult(allowed=True)
 
-    def add_connection(self, connection_id: str, ip_address: str, user_id: Optional[str] = None) -> bool:
+    def add_connection(
+        self, connection_id: str, ip_address: str, user_id: Optional[str] = None
+    ) -> bool:
         """
         Add a new connection to tracking.
 
@@ -127,7 +135,7 @@ class RateLimiter:
             ip_address=ip_address,
             user_id=user_id,
             connected_at=now,
-            last_message=now
+            last_message=now,
         )
 
         self.connections[connection_id] = connection_info
@@ -179,10 +187,7 @@ class RateLimiter:
             RateLimitResult indicating if message is allowed
         """
         if connection_id not in self.connections:
-            return RateLimitResult(
-                allowed=False,
-                reason="Connection not found"
-            )
+            return RateLimitResult(allowed=False, reason="Connection not found")
 
         now = time.time()
         window_start = now - RATE_LIMIT_WINDOW
@@ -199,7 +204,7 @@ class RateLimiter:
             return RateLimitResult(
                 allowed=False,
                 reason=f"Message rate limit exceeded: {len(message_times)}/{MESSAGE_RATE_LIMIT} per minute",
-                retry_after=int(message_times[0] + RATE_LIMIT_WINDOW - now) + 1
+                retry_after=int(message_times[0] + RATE_LIMIT_WINDOW - now) + 1,
             )
 
         return RateLimitResult(allowed=True)
@@ -238,7 +243,9 @@ class RateLimiter:
             Dictionary with current statistics
         """
         total_connections = len(self.connections)
-        connections_by_ip = {ip: len(conn_ids) for ip, conn_ids in self.connections_by_ip.items()}
+        connections_by_ip = {
+            ip: len(conn_ids) for ip, conn_ids in self.connections_by_ip.items()
+        }
 
         # Calculate message rates
         now = time.time()
@@ -246,18 +253,23 @@ class RateLimiter:
 
         total_messages_last_minute = 0
         for message_times in self.message_times.values():
-            total_messages_last_minute += sum(1 for t in message_times if t >= window_start)
+            total_messages_last_minute += sum(
+                1 for t in message_times if t >= window_start
+            )
 
         return {
             "total_connections": total_connections,
             "connections_by_ip": connections_by_ip,
-            "max_connections_per_ip": int(os.getenv("WEBSOCKET_MAX_CONNECTIONS_PER_IP", "50")),
+            "max_connections_per_ip": int(
+                os.getenv("WEBSOCKET_MAX_CONNECTIONS_PER_IP", "50")
+            ),
             "message_rate_limit": MESSAGE_RATE_LIMIT,
             "messages_last_minute": total_messages_last_minute,
             "avg_messages_per_connection": (
                 total_messages_last_minute / total_connections
-                if total_connections > 0 else 0
-            )
+                if total_connections > 0
+                else 0
+            ),
         }
 
     def auto_disconnect_violators(self) -> list[str]:

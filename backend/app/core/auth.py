@@ -22,6 +22,7 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 class TokenData(BaseModel):
     """Token payload data structure."""
+
     user_id: Optional[str] = None
     username: Optional[str] = None
     permissions: list[str] = []
@@ -30,6 +31,7 @@ class TokenData(BaseModel):
 
 class Token(BaseModel):
     """JWT token response model."""
+
     access_token: str
     token_type: str = "bearer"
     expires_in: int
@@ -123,7 +125,7 @@ def get_current_user(token: str) -> Optional[TokenData]:
             user_id=user_id,
             username=username,
             permissions=permissions,
-            workstation_access=workstation_access
+            workstation_access=workstation_access,
         )
     except Exception:
         return None
@@ -132,7 +134,7 @@ def get_current_user(token: str) -> Optional[TokenData]:
 def create_demo_token(
     user_id: str = "demo_user",
     username: str = "demo",
-    workstation_ids: list[str] = None
+    workstation_ids: list[str] = None,
 ) -> str:
     """
     Create a demo token for development/testing.
@@ -152,7 +154,7 @@ def create_demo_token(
         "sub": user_id,
         "username": username,
         "permissions": ["read", "write", "admin"],
-        "workstation_access": workstation_ids
+        "workstation_access": workstation_ids,
     }
 
     return create_access_token(data=token_data)

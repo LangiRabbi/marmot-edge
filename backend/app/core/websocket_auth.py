@@ -8,10 +8,10 @@ from typing import Optional
 from urllib.parse import parse_qs
 
 from dotenv import load_dotenv
-from fastapi import WebSocket, HTTPException, status
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi import HTTPException, WebSocket, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
-from .auth import get_current_user, TokenData
+from .auth import TokenData, get_current_user
 from .rate_limiting import rate_limiter
 
 # Load environment variables first
@@ -54,7 +54,7 @@ async def authenticate_websocket(websocket: WebSocket) -> Optional[TokenData]:
     if not token:
         raise WebSocketAuthError(
             code=status.WS_1008_POLICY_VIOLATION,
-            reason="Missing authentication token. Use ?token=<jwt_token> in WebSocket URL"
+            reason="Missing authentication token. Use ?token=<jwt_token> in WebSocket URL",
         )
 
     # Validate token
@@ -62,13 +62,15 @@ async def authenticate_websocket(websocket: WebSocket) -> Optional[TokenData]:
     if not user:
         raise WebSocketAuthError(
             code=status.WS_1008_POLICY_VIOLATION,
-            reason="Invalid or expired authentication token"
+            reason="Invalid or expired authentication token",
         )
 
     return user
 
 
-async def authorize_workstation_access(user: Optional[TokenData], workstation_id: str) -> bool:
+async def authorize_workstation_access(
+    user: Optional[TokenData], workstation_id: str
+) -> bool:
     """
     Check if user has access to specific workstation.
 
@@ -85,10 +87,13 @@ async def authorize_workstation_access(user: Optional[TokenData], workstation_id
 
     # Import here to avoid circular import
     from .auth import check_workstation_access
+
     return check_workstation_access(user, workstation_id)
 
 
-async def check_connection_rate_limit(websocket: WebSocket, user: Optional[TokenData]) -> bool:
+async def check_connection_rate_limit(
+    websocket: WebSocket, user: Optional[TokenData]
+) -> bool:
     """
     Check rate limits for new WebSocket connection.
 
@@ -109,14 +114,15 @@ async def check_connection_rate_limit(websocket: WebSocket, user: Optional[Token
     rate_check = rate_limiter.check_connection_limit(client_ip)
     if not rate_check.allowed:
         raise WebSocketAuthError(
-            code=status.WS_1008_POLICY_VIOLATION,
-            reason=rate_check.reason
+            code=status.WS_1008_POLICY_VIOLATION, reason=rate_check.reason
         )
 
     return True
 
 
-async def register_connection(websocket: WebSocket, connection_id: str, user: Optional[TokenData]) -> bool:
+async def register_connection(
+    websocket: WebSocket, connection_id: str, user: Optional[TokenData]
+) -> bool:
     """
     Register new WebSocket connection with rate limiter.
 
@@ -160,8 +166,7 @@ async def check_message_rate_limit(connection_id: str) -> bool:
     rate_check = rate_limiter.check_message_rate(connection_id)
     if not rate_check.allowed:
         raise WebSocketAuthError(
-            code=status.WS_1008_POLICY_VIOLATION,
-            reason=rate_check.reason
+            code=status.WS_1008_POLICY_VIOLATION, reason=rate_check.reason
         )
 
     return True
@@ -231,7 +236,9 @@ def _get_client_ip(websocket: WebSocket) -> str:
 
 
 # Development helpers
-def create_demo_websocket_url(base_url: str, workstation_id: str, demo_user: str = "demo") -> str:
+def create_demo_websocket_url(
+    base_url: str, workstation_id: str, demo_user: str = "demo"
+) -> str:
     """
     Create a WebSocket URL with demo token for development.
 

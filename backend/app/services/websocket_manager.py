@@ -15,6 +15,7 @@ from pydantic import ValidationError
 
 from app.core.auth import TokenData
 from app.core.websocket_auth import (
+    WebSocketAuthError,
     authenticate_websocket,
     authorize_workstation_access,
     check_connection_rate_limit,
@@ -22,18 +23,17 @@ from app.core.websocket_auth import (
     record_message,
     register_connection,
     unregister_connection,
-    WebSocketAuthError
 )
 from app.schemas.websocket_messages import (
     ClientMessage,
-    ServerMessage,
-    SubscriptionType,
-    MessageType,
-    parse_client_message,
-    create_error_message,
     ConnectedMessage,
     DisconnectedMessage,
-    PongMessage
+    MessageType,
+    PongMessage,
+    ServerMessage,
+    SubscriptionType,
+    create_error_message,
+    parse_client_message,
 )
 
 
@@ -41,10 +41,7 @@ class ConnectionInfo:
     """Information about an active WebSocket connection."""
 
     def __init__(
-        self,
-        websocket: WebSocket,
-        connection_id: str,
-        user: Optional[TokenData] = None
+        self, websocket: WebSocket, connection_id: str, user: Optional[TokenData] = None
     ):
         self.websocket = websocket
         self.connection_id = connection_id
@@ -54,7 +51,9 @@ class ConnectionInfo:
         self.subscriptions: Dict[str, Set[SubscriptionType]] = defaultdict(set)
         self.is_active = True
 
-    def subscribe_to_workstation(self, workstation_id: str, subscription_types: List[SubscriptionType]):
+    def subscribe_to_workstation(
+        self, workstation_id: str, subscription_types: List[SubscriptionType]
+    ):
         """Add subscriptions for a workstation."""
         for sub_type in subscription_types:
             if sub_type == SubscriptionType.ALL:
@@ -63,7 +62,7 @@ class ConnectionInfo:
                     SubscriptionType.DETECTIONS,
                     SubscriptionType.ZONES,
                     SubscriptionType.EFFICIENCY,
-                    SubscriptionType.ALERTS
+                    SubscriptionType.ALERTS,
                 }
             else:
                 self.subscriptions[workstation_id].add(sub_type)
@@ -71,7 +70,7 @@ class ConnectionInfo:
     def unsubscribe_from_workstation(
         self,
         workstation_id: str,
-        subscription_types: Optional[List[SubscriptionType]] = None
+        subscription_types: Optional[List[SubscriptionType]] = None,
     ):
         """Remove subscriptions for a workstation."""
         if workstation_id not in self.subscriptions:
@@ -89,7 +88,9 @@ class ConnectionInfo:
             if not self.subscriptions[workstation_id]:
                 del self.subscriptions[workstation_id]
 
-    def is_subscribed_to(self, workstation_id: str, message_type: SubscriptionType) -> bool:
+    def is_subscribed_to(
+        self, workstation_id: str, message_type: SubscriptionType
+    ) -> bool:
         """Check if connection is subscribed to specific workstation and message type."""
         if workstation_id not in self.subscriptions:
             return False
@@ -118,8 +119,8 @@ class WebSocketManager:
         self.connections: Dict[str, ConnectionInfo] = {}
 
         # Subscription tracking for efficient broadcasting
-        self.workstation_subscribers: Dict[str, Dict[SubscriptionType, Set[str]]] = defaultdict(
-            lambda: defaultdict(set)
+        self.workstation_subscribers: Dict[str, Dict[SubscriptionType, Set[str]]] = (
+            defaultdict(lambda: defaultdict(set))
         )
 
         # Statistics
@@ -172,7 +173,7 @@ class WebSocketManager:
             # Send connection confirmation
             welcome_message = ConnectedMessage(
                 connection_id=connection_id,
-                features=["subscriptions", "rate_limiting", "authentication"]
+                features=["subscriptions", "rate_limiting", "authentication"],
             )
             await self._send_to_connection(connection_id, welcome_message)
 
@@ -209,7 +210,9 @@ class WebSocketManager:
         # Remove from subscription tracking
         for workstation_id in connection_info.get_subscribed_workstations():
             for sub_type in SubscriptionType:
-                self.workstation_subscribers[workstation_id][sub_type].discard(connection_id)
+                self.workstation_subscribers[workstation_id][sub_type].discard(
+                    connection_id
+                )
 
         # Clean up empty subscription sets
         self._cleanup_empty_subscriptions()
@@ -249,8 +252,7 @@ class WebSocketManager:
                 message = parse_client_message(raw_data)
             except (json.JSONDecodeError, ValidationError) as e:
                 error_message = create_error_message(
-                    "INVALID_MESSAGE",
-                    f"Invalid message format: {str(e)}"
+                    "INVALID_MESSAGE", f"Invalid message format: {str(e)}"
                 )
                 await self._send_to_connection(connection_id, error_message)
                 return
@@ -274,14 +276,16 @@ class WebSocketManager:
 
         except Exception as e:
             self.total_errors += 1
-            error_message = create_error_message("SERVER_ERROR", f"Internal server error: {str(e)}")
+            error_message = create_error_message(
+                "SERVER_ERROR", f"Internal server error: {str(e)}"
+            )
             await self._send_to_connection(connection_id, error_message)
 
     async def broadcast_to_workstation(
         self,
         workstation_id: str,
         message: ServerMessage,
-        subscription_type: SubscriptionType = SubscriptionType.ALL
+        subscription_type: SubscriptionType = SubscriptionType.ALL,
     ):
         """
         Broadcast message to all subscribers of a workstation.
@@ -302,11 +306,15 @@ class WebSocketManager:
             subscriber_ids = all_subscribers
         else:
             # Send to specific subscription type
-            subscriber_ids = self.workstation_subscribers[workstation_id][subscription_type]
+            subscriber_ids = self.workstation_subscribers[workstation_id][
+                subscription_type
+            ]
 
         # Send to all subscribers
         tasks = []
-        for connection_id in subscriber_ids.copy():  # Copy to avoid modification during iteration
+        for (
+            connection_id
+        ) in subscriber_ids.copy():  # Copy to avoid modification during iteration
             if connection_id in self.connections:
                 tasks.append(self._send_to_connection(connection_id, message))
 
@@ -325,49 +333,72 @@ class WebSocketManager:
 
         if not authorized_workstations:
             error_message = create_error_message(
-                "ACCESS_DENIED",
-                "Access denied to all requested workstations"
+                "ACCESS_DENIED", "Access denied to all requested workstations"
             )
             await self._send_to_connection(connection_id, error_message)
             return
 
         # Add subscriptions
         for workstation_id in authorized_workstations:
-            connection_info.subscribe_to_workstation(workstation_id, message.subscription_types)
+            connection_info.subscribe_to_workstation(
+                workstation_id, message.subscription_types
+            )
 
             # Update subscription tracking
             for sub_type in message.subscription_types:
                 if sub_type == SubscriptionType.ALL:
-                    for actual_type in [SubscriptionType.DETECTIONS, SubscriptionType.ZONES,
-                                      SubscriptionType.EFFICIENCY, SubscriptionType.ALERTS]:
-                        self.workstation_subscribers[workstation_id][actual_type].add(connection_id)
+                    for actual_type in [
+                        SubscriptionType.DETECTIONS,
+                        SubscriptionType.ZONES,
+                        SubscriptionType.EFFICIENCY,
+                        SubscriptionType.ALERTS,
+                    ]:
+                        self.workstation_subscribers[workstation_id][actual_type].add(
+                            connection_id
+                        )
                 else:
-                    self.workstation_subscribers[workstation_id][sub_type].add(connection_id)
+                    self.workstation_subscribers[workstation_id][sub_type].add(
+                        connection_id
+                    )
 
     async def _handle_unsubscribe(self, connection_id: str, message):
         """Handle unsubscription request."""
         connection_info = self.connections[connection_id]
 
-        workstation_ids = message.workstation_ids or list(connection_info.get_subscribed_workstations())
+        workstation_ids = message.workstation_ids or list(
+            connection_info.get_subscribed_workstations()
+        )
 
         for workstation_id in workstation_ids:
             # Remove from connection subscriptions
-            connection_info.unsubscribe_from_workstation(workstation_id, message.subscription_types)
+            connection_info.unsubscribe_from_workstation(
+                workstation_id, message.subscription_types
+            )
 
             # Remove from subscription tracking
             if message.subscription_types is None:
                 # Remove all subscriptions
                 for sub_type in SubscriptionType:
                     if sub_type != SubscriptionType.ALL:
-                        self.workstation_subscribers[workstation_id][sub_type].discard(connection_id)
+                        self.workstation_subscribers[workstation_id][sub_type].discard(
+                            connection_id
+                        )
             else:
                 for sub_type in message.subscription_types:
                     if sub_type == SubscriptionType.ALL:
-                        for actual_type in [SubscriptionType.DETECTIONS, SubscriptionType.ZONES,
-                                          SubscriptionType.EFFICIENCY, SubscriptionType.ALERTS]:
-                            self.workstation_subscribers[workstation_id][actual_type].discard(connection_id)
+                        for actual_type in [
+                            SubscriptionType.DETECTIONS,
+                            SubscriptionType.ZONES,
+                            SubscriptionType.EFFICIENCY,
+                            SubscriptionType.ALERTS,
+                        ]:
+                            self.workstation_subscribers[workstation_id][
+                                actual_type
+                            ].discard(connection_id)
                     else:
-                        self.workstation_subscribers[workstation_id][sub_type].discard(connection_id)
+                        self.workstation_subscribers[workstation_id][sub_type].discard(
+                            connection_id
+                        )
 
         self._cleanup_empty_subscriptions()
 
@@ -407,7 +438,8 @@ class WebSocketManager:
 
             # Remove empty subscription types
             empty_types = [
-                sub_type for sub_type, connections in subscription_dict.items()
+                sub_type
+                for sub_type, connections in subscription_dict.items()
                 if not connections
             ]
 
@@ -428,7 +460,9 @@ class WebSocketManager:
         # Count subscriptions by workstation
         workstation_counts = {}
         for workstation_id, subscription_dict in self.workstation_subscribers.items():
-            total_subs = sum(len(connections) for connections in subscription_dict.values())
+            total_subs = sum(
+                len(connections) for connections in subscription_dict.values()
+            )
             workstation_counts[workstation_id] = total_subs
 
         return {
@@ -437,7 +471,7 @@ class WebSocketManager:
             "total_messages_sent": self.total_messages_sent,
             "total_errors": self.total_errors,
             "workstation_subscriptions": workstation_counts,
-            "subscribed_workstations": len(self.workstation_subscribers)
+            "subscribed_workstations": len(self.workstation_subscribers),
         }
 
 

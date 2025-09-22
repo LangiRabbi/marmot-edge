@@ -9,12 +9,12 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 # Import API routers
-from app.api.v1 import detection, seed, video_streams, workstations, zones, websocket
+from app.api.v1 import detection, seed, video_streams, websocket, workstations, zones
+from app.core.rate_limiting import rate_limiter
 
 # Import services for graceful shutdown
 from app.services.video_service import get_video_manager
 from app.workers.video_processor import get_video_processor
-from app.core.rate_limiting import rate_limiter
 
 # Load environment variables
 load_dotenv()

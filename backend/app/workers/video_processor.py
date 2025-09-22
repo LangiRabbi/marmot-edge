@@ -486,20 +486,20 @@ class VideoProcessor:
             result: Processing result to broadcast
         """
         try:
-            from ..services.websocket_manager import websocket_manager
             from ..schemas.websocket_messages import (
+                PersonDetection,
+                SubscriptionType,
+                ZoneOccupancy,
                 create_detection_update,
                 create_zone_update,
-                PersonDetection,
-                ZoneOccupancy,
-                SubscriptionType
             )
+            from ..services.websocket_manager import websocket_manager
 
             # Create person detection data
             persons = []
             for tracking in result.trackings:
-                if 'bbox' in tracking and 'track_id' in tracking:
-                    bbox = tracking['bbox']
+                if "bbox" in tracking and "track_id" in tracking:
+                    bbox = tracking["bbox"]
 
                     # Calculate center point
                     center_x = (bbox[0] + bbox[2]) / 2
@@ -507,17 +507,22 @@ class VideoProcessor:
 
                     # Find zones this person is in
                     person_zones = []
-                    zone_analysis = result.zone_analysis.get('zones', {})
+                    zone_analysis = result.zone_analysis.get("zones", {})
                     for zone_id, zone_data in zone_analysis.items():
-                        if tracking['track_id'] in zone_data.get('person_ids', []):
+                        if tracking["track_id"] in zone_data.get("person_ids", []):
                             person_zones.append(zone_id)
 
                     person = PersonDetection(
-                        tracking_id=tracking['track_id'],
-                        confidence=tracking.get('confidence', 0.0),
-                        bbox=[float(bbox[0]), float(bbox[1]), float(bbox[2]), float(bbox[3])],
+                        tracking_id=tracking["track_id"],
+                        confidence=tracking.get("confidence", 0.0),
+                        bbox=[
+                            float(bbox[0]),
+                            float(bbox[1]),
+                            float(bbox[2]),
+                            float(bbox[3]),
+                        ],
                         center=[float(center_x), float(center_y)],
-                        zones=person_zones
+                        zones=person_zones,
                     )
                     persons.append(person)
 
@@ -527,46 +532,48 @@ class VideoProcessor:
                 frame_timestamp=result.timestamp,
                 persons=persons,
                 processing_fps=result.fps_current,
-                frame_number=result.frame_number
+                frame_number=result.frame_number,
             )
 
             # Broadcast detection update
             await websocket_manager.broadcast_to_workstation(
                 workstation_id=result.stream_id,
                 message=detection_message,
-                subscription_type=SubscriptionType.DETECTIONS
+                subscription_type=SubscriptionType.DETECTIONS,
             )
 
             # Create zone update data
             zones = []
-            zone_analysis = result.zone_analysis.get('zones', {})
+            zone_analysis = result.zone_analysis.get("zones", {})
             for zone_id, zone_data in zone_analysis.items():
-                person_ids = zone_data.get('person_ids', [])
+                person_ids = zone_data.get("person_ids", [])
                 zone_occupancy = ZoneOccupancy(
                     zone_id=zone_id,
                     person_count=len(person_ids),
                     person_ids=person_ids,
-                    occupancy_changed=zone_data.get('status_changed', False)
+                    occupancy_changed=zone_data.get("status_changed", False),
                 )
                 zones.append(zone_occupancy)
 
             # Create zone update message
             zone_message = create_zone_update(
-                workstation_id=result.stream_id,
-                zones=zones
+                workstation_id=result.stream_id, zones=zones
             )
 
             # Broadcast zone update
             await websocket_manager.broadcast_to_workstation(
                 workstation_id=result.stream_id,
                 message=zone_message,
-                subscription_type=SubscriptionType.ZONES
+                subscription_type=SubscriptionType.ZONES,
             )
 
             # Create efficiency update if available
-            efficiency_data = result.zone_analysis.get('efficiency')
+            efficiency_data = result.zone_analysis.get("efficiency")
             if efficiency_data:
-                from ..schemas.websocket_messages import EfficiencyUpdateMessage, EfficiencyMetrics
+                from ..schemas.websocket_messages import (
+                    EfficiencyMetrics,
+                    EfficiencyUpdateMessage,
+                )
 
                 # Determine current state based on person count
                 current_state = "idle"
@@ -576,26 +583,29 @@ class VideoProcessor:
                     current_state = "other"
 
                 efficiency_metrics = EfficiencyMetrics(
-                    work_time_seconds=efficiency_data.get('work_minutes', 0) * 60,
-                    idle_time_seconds=efficiency_data.get('idle_minutes', 0) * 60,
-                    other_time_seconds=efficiency_data.get('other_minutes', 0) * 60,
-                    total_time_seconds=efficiency_data.get('total_minutes', 0) * 60,
-                    efficiency_percentage=efficiency_data.get('efficiency_percentage', 0),
-                    current_state=current_state
+                    work_time_seconds=efficiency_data.get("work_minutes", 0) * 60,
+                    idle_time_seconds=efficiency_data.get("idle_minutes", 0) * 60,
+                    other_time_seconds=efficiency_data.get("other_minutes", 0) * 60,
+                    total_time_seconds=efficiency_data.get("total_minutes", 0) * 60,
+                    efficiency_percentage=efficiency_data.get(
+                        "efficiency_percentage", 0
+                    ),
+                    current_state=current_state,
                 )
 
                 efficiency_message = EfficiencyUpdateMessage(
                     workstation_id=result.stream_id,
                     metrics=efficiency_metrics,
-                    period_start=result.timestamp - timedelta(minutes=efficiency_data.get('total_minutes', 0)),
-                    period_end=result.timestamp
+                    period_start=result.timestamp
+                    - timedelta(minutes=efficiency_data.get("total_minutes", 0)),
+                    period_end=result.timestamp,
                 )
 
                 # Broadcast efficiency update
                 await websocket_manager.broadcast_to_workstation(
                     workstation_id=result.stream_id,
                     message=efficiency_message,
-                    subscription_type=SubscriptionType.EFFICIENCY
+                    subscription_type=SubscriptionType.EFFICIENCY,
                 )
 
         except Exception as e:

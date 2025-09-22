@@ -7,7 +7,7 @@ import asyncio
 import json
 from typing import Dict
 
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse
 
 from app.core.rate_limiting import rate_limiter
@@ -48,6 +48,7 @@ async def websocket_endpoint(websocket: WebSocket, workstation_id: str):
     print(f"🔴 Headers: {dict(websocket.headers)}")
     print(f"🔴 Query params: {dict(websocket.query_params)}")
     from app.core.websocket_auth import WEBSOCKET_AUTH_REQUIRED
+
     print(f"🔴 Auth required: {WEBSOCKET_AUTH_REQUIRED}")
 
     connection_id = None
@@ -79,7 +80,7 @@ async def websocket_endpoint(websocket: WebSocket, workstation_id: str):
                     error_response = {
                         "type": "error",
                         "error_code": "MESSAGE_ERROR",
-                        "error_message": str(e)
+                        "error_message": str(e),
                     }
                     await websocket.send_text(json.dumps(error_response))
                 except:
@@ -119,17 +120,14 @@ async def websocket_health():
                 "authentication": True,
                 "rate_limiting": True,
                 "subscriptions": True,
-                "monitoring": True
-            }
+                "monitoring": True,
+            },
         }
 
         return health_data
 
     except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Health check failed: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Health check failed: {str(e)}")
 
 
 @router.get("/websocket/demo")
@@ -352,7 +350,7 @@ async def get_demo_token():
         demo_token = create_demo_token(
             user_id="demo_user",
             username="demo",
-            workstation_ids=["*"]  # Access to all workstations
+            workstation_ids=["*"],  # Access to all workstations
         )
 
         return {
@@ -360,21 +358,18 @@ async def get_demo_token():
             "user": "demo",
             "workstation_access": "all",
             "expires_in_minutes": 30,
-            "note": "Demo token for development only"
+            "note": "Demo token for development only",
         }
 
     except Exception as e:
         raise HTTPException(
-            status_code=500,
-            detail=f"Failed to create demo token: {str(e)}"
+            status_code=500, detail=f"Failed to create demo token: {str(e)}"
         )
 
 
 @router.post("/websocket/broadcast")
 async def broadcast_test_message(
-    workstation_id: str,
-    message_type: str = "test",
-    content: str = "Test message"
+    workstation_id: str, message_type: str = "test", content: str = "Test message"
 ):
     """
     Test endpoint for broadcasting messages to WebSocket subscribers.
@@ -382,7 +377,7 @@ async def broadcast_test_message(
     ⚠️ Development/testing only!
     """
     try:
-        from app.schemas.websocket_messages import AlertMessage, AlertLevel
+        from app.schemas.websocket_messages import AlertLevel, AlertMessage
 
         # Create test alert message
         test_message = AlertMessage(
@@ -391,28 +386,28 @@ async def broadcast_test_message(
             level=AlertLevel.INFO,
             title="Test Alert",
             message=content,
-            data={"test": True}
+            data={"test": True},
         )
 
         # Broadcast to subscribers
         from app.schemas.websocket_messages import SubscriptionType
+
         await websocket_manager.broadcast_to_workstation(
             workstation_id=workstation_id,
             message=test_message,
-            subscription_type=SubscriptionType.ALERTS
+            subscription_type=SubscriptionType.ALERTS,
         )
 
         return {
             "success": True,
             "message": f"Test message broadcasted to workstation {workstation_id}",
-            "subscribers": len(websocket_manager.workstation_subscribers.get(workstation_id, {}))
+            "subscribers": len(
+                websocket_manager.workstation_subscribers.get(workstation_id, {})
+            ),
         }
 
     except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Broadcast failed: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Broadcast failed: {str(e)}")
 
 
 @router.post("/websocket/clear-connections")
@@ -427,13 +422,7 @@ async def clear_all_connections():
 
         rate_limiter.clear_all_connections()
 
-        return {
-            "success": True,
-            "message": "All connections cleared from rate limiter"
-        }
+        return {"success": True, "message": "All connections cleared from rate limiter"}
 
     except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Clear failed: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Clear failed: {str(e)}")

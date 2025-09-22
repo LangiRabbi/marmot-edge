@@ -12,6 +12,7 @@ from pydantic import BaseModel, Field, validator
 
 class MessageType(str, Enum):
     """WebSocket message types."""
+
     # Client to server messages
     SUBSCRIBE = "subscribe"
     UNSUBSCRIBE = "unsubscribe"
@@ -30,6 +31,7 @@ class MessageType(str, Enum):
 
 class SubscriptionType(str, Enum):
     """Types of data subscriptions."""
+
     DETECTIONS = "detections"
     ZONES = "zones"
     EFFICIENCY = "efficiency"
@@ -40,6 +42,7 @@ class SubscriptionType(str, Enum):
 # Base message classes
 class BaseWSMessage(BaseModel):
     """Base WebSocket message structure."""
+
     type: MessageType
     timestamp: datetime = Field(default_factory=datetime.utcnow)
     id: Optional[str] = None  # Message ID for tracking
@@ -48,11 +51,12 @@ class BaseWSMessage(BaseModel):
 # Client to server messages
 class SubscribeMessage(BaseWSMessage):
     """Subscribe to workstation updates."""
+
     type: Literal[MessageType.SUBSCRIBE] = MessageType.SUBSCRIBE
     workstation_ids: List[str] = Field(..., min_items=1, max_items=10)
     subscription_types: List[SubscriptionType] = Field(default=[SubscriptionType.ALL])
 
-    @validator('workstation_ids')
+    @validator("workstation_ids")
     def validate_workstation_ids(cls, v):
         # Remove duplicates and validate format
         unique_ids = list(set(v))
@@ -64,6 +68,7 @@ class SubscribeMessage(BaseWSMessage):
 
 class UnsubscribeMessage(BaseWSMessage):
     """Unsubscribe from workstation updates."""
+
     type: Literal[MessageType.UNSUBSCRIBE] = MessageType.UNSUBSCRIBE
     workstation_ids: Optional[List[str]] = None  # None = unsubscribe from all
     subscription_types: Optional[List[SubscriptionType]] = None  # None = all types
@@ -71,12 +76,14 @@ class UnsubscribeMessage(BaseWSMessage):
 
 class PingMessage(BaseWSMessage):
     """Ping message for connection health check."""
+
     type: Literal[MessageType.PING] = MessageType.PING
 
 
 # Server to client messages
 class PersonDetection(BaseModel):
     """Individual person detection data."""
+
     tracking_id: int
     confidence: float = Field(..., ge=0.0, le=1.0)
     bbox: List[float] = Field(..., min_items=4, max_items=4)  # [x1, y1, x2, y2]
@@ -86,6 +93,7 @@ class PersonDetection(BaseModel):
 
 class DetectionUpdateMessage(BaseWSMessage):
     """Real-time person detection update."""
+
     type: Literal[MessageType.DETECTION_UPDATE] = MessageType.DETECTION_UPDATE
     workstation_id: str
     frame_timestamp: datetime
@@ -97,6 +105,7 @@ class DetectionUpdateMessage(BaseWSMessage):
 
 class ZoneOccupancy(BaseModel):
     """Zone occupancy information."""
+
     zone_id: str
     person_count: int = Field(..., ge=0)
     person_ids: List[int] = []  # Tracking IDs of persons in zone
@@ -105,6 +114,7 @@ class ZoneOccupancy(BaseModel):
 
 class ZoneUpdateMessage(BaseWSMessage):
     """Zone occupancy update."""
+
     type: Literal[MessageType.ZONE_UPDATE] = MessageType.ZONE_UPDATE
     workstation_id: str
     zones: List[ZoneOccupancy]
@@ -113,6 +123,7 @@ class ZoneUpdateMessage(BaseWSMessage):
 
 class EfficiencyMetrics(BaseModel):
     """Efficiency calculation metrics."""
+
     work_time_seconds: float = Field(..., ge=0)
     idle_time_seconds: float = Field(..., ge=0)
     other_time_seconds: float = Field(..., ge=0)  # Multiple persons
@@ -123,6 +134,7 @@ class EfficiencyMetrics(BaseModel):
 
 class EfficiencyUpdateMessage(BaseWSMessage):
     """Efficiency metrics update."""
+
     type: Literal[MessageType.EFFICIENCY_UPDATE] = MessageType.EFFICIENCY_UPDATE
     workstation_id: str
     metrics: EfficiencyMetrics
@@ -132,6 +144,7 @@ class EfficiencyUpdateMessage(BaseWSMessage):
 
 class AlertLevel(str, Enum):
     """Alert severity levels."""
+
     INFO = "info"
     WARNING = "warning"
     ERROR = "error"
@@ -140,6 +153,7 @@ class AlertLevel(str, Enum):
 
 class AlertMessage(BaseWSMessage):
     """System alert notification."""
+
     type: Literal[MessageType.ALERT] = MessageType.ALERT
     workstation_id: str
     alert_type: str  # e.g., "no_operator", "extended_break", "system_error"
@@ -151,11 +165,13 @@ class AlertMessage(BaseWSMessage):
 
 class PongMessage(BaseWSMessage):
     """Pong response to ping."""
+
     type: Literal[MessageType.PONG] = MessageType.PONG
 
 
 class ErrorMessage(BaseWSMessage):
     """Error response message."""
+
     type: Literal[MessageType.ERROR] = MessageType.ERROR
     error_code: str
     error_message: str
@@ -164,6 +180,7 @@ class ErrorMessage(BaseWSMessage):
 
 class ConnectedMessage(BaseWSMessage):
     """Connection established confirmation."""
+
     type: Literal[MessageType.CONNECTED] = MessageType.CONNECTED
     connection_id: str
     server_version: str = "1.0.0"
@@ -172,17 +189,14 @@ class ConnectedMessage(BaseWSMessage):
 
 class DisconnectedMessage(BaseWSMessage):
     """Disconnection notification."""
+
     type: Literal[MessageType.DISCONNECTED] = MessageType.DISCONNECTED
     reason: str
     reconnect_allowed: bool = True
 
 
 # Union type for all possible messages
-ClientMessage = Union[
-    SubscribeMessage,
-    UnsubscribeMessage,
-    PingMessage
-]
+ClientMessage = Union[SubscribeMessage, UnsubscribeMessage, PingMessage]
 
 ServerMessage = Union[
     DetectionUpdateMessage,
@@ -192,7 +206,7 @@ ServerMessage = Union[
     PongMessage,
     ErrorMessage,
     ConnectedMessage,
-    DisconnectedMessage
+    DisconnectedMessage,
 ]
 
 WebSocketMessage = Union[ClientMessage, ServerMessage]
@@ -224,7 +238,9 @@ def parse_client_message(data: dict) -> ClientMessage:
         raise ValueError(f"Unknown client message type: {message_type}")
 
 
-def create_error_message(error_code: str, error_message: str, details: Optional[Dict[str, Any]] = None) -> ErrorMessage:
+def create_error_message(
+    error_code: str, error_message: str, details: Optional[Dict[str, Any]] = None
+) -> ErrorMessage:
     """
     Create a standardized error message.
 
@@ -237,9 +253,7 @@ def create_error_message(error_code: str, error_message: str, details: Optional[
         Error message object
     """
     return ErrorMessage(
-        error_code=error_code,
-        error_message=error_message,
-        details=details
+        error_code=error_code, error_message=error_message, details=details
     )
 
 
@@ -248,7 +262,7 @@ def create_detection_update(
     frame_timestamp: datetime,
     persons: List[PersonDetection],
     processing_fps: float,
-    frame_number: int
+    frame_number: int,
 ) -> DetectionUpdateMessage:
     """
     Create a detection update message.
@@ -269,13 +283,12 @@ def create_detection_update(
         person_count=len(persons),
         persons=persons,
         processing_fps=processing_fps,
-        frame_number=frame_number
+        frame_number=frame_number,
     )
 
 
 def create_zone_update(
-    workstation_id: str,
-    zones: List[ZoneOccupancy]
+    workstation_id: str, zones: List[ZoneOccupancy]
 ) -> ZoneUpdateMessage:
     """
     Create a zone update message.
@@ -290,7 +303,5 @@ def create_zone_update(
     total_persons = sum(zone.person_count for zone in zones)
 
     return ZoneUpdateMessage(
-        workstation_id=workstation_id,
-        zones=zones,
-        total_persons=total_persons
+        workstation_id=workstation_id, zones=zones, total_persons=total_persons
     )

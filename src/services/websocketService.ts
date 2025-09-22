@@ -82,14 +82,14 @@ export interface AlertMessage extends BaseMessage {
   level: 'info' | 'warning' | 'error' | 'critical';
   title: string;
   message: string;
-  data?: Record<string, any>;
+  data?: Record<string, unknown>;
 }
 
 export interface ErrorMessage extends BaseMessage {
   type: 'error';
   error_code: string;
   error_message: string;
-  details?: Record<string, any>;
+  details?: Record<string, unknown>;
 }
 
 export type WebSocketMessage =
@@ -413,7 +413,7 @@ class WebSocketService {
     };
   }
 
-  private send(message: any): void {
+  private send(message: Record<string, unknown>): void {
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
       console.warn('Cannot send message: WebSocket not connected');
       return;
