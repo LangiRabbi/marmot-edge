@@ -494,12 +494,11 @@ export function AddWorkstationModal({ open, onOpenChange, onAddWorkstation }: Ad
                 <div className="relative">
                   <input
                     id="video-file-upload"
-                    key="video-file-upload-unique"
                     ref={fileInputRef}
                     type="file"
                     accept=".mp4,.webm,.mov"
                     onChange={(e) => setUploadedFile(e.target.files?.[0] || null)}
-                    className="sr-only"
+                    hidden
                   />
                   <label
                     htmlFor="video-file-upload"
