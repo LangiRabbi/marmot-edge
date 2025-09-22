@@ -21,6 +21,7 @@ Marmot is an industrial monitoring system that uses computer vision to track per
 - **🏭 Workstation Management**: Complete CRUD operations with video integration
 - **📱 USB Camera Integration**: Device enumeration with live preview
 - **🌐 RTSP Testing**: Connection validation with status feedback
+- **🔌 Real-Time WebSocket Communication**: JWT authentication, rate limiting, connection management
 - **⚡ Performance Optimized**: Up to 8 simultaneous person tracking
 
 ## 🏗️ Technology Stack
@@ -46,6 +47,33 @@ Marmot is an industrial monitoring system that uses computer vision to track per
 - **Multi-Object Tracking**: BoT-SORT with persistent IDs
 - **Zone Analysis**: Rectangular zones with O(1) intersection checks
 - **Efficiency Metrics**: Real-time work/idle status calculation
+
+## 🏢 Deployment Strategy
+
+Marmot Industrial Monitoring System is designed for flexible deployment scenarios:
+
+### Current: On-Premise PostgreSQL (Q1 2025)
+- **Target**: First customer deployments with full control
+- **Database**: PostgreSQL with database abstraction layer
+- **Hardware**: Dedicated servers, 16GB+ RAM, optional GPU acceleration
+- **Deployment**: Docker containers, VM, or shared database integration
+
+### Future: Cloud Expansion (Q2-Q3 2025)
+- **Trigger**: After 3+ successful on-premise deployments
+- **Implementation**: Supabase adapter, multi-tenant architecture, cloud-native packages
+- **Benefits**: Managed services, automatic scaling, reduced IT overhead
+
+### Future: Edge Processing (Q3-Q4 2025)
+- **Trigger**: Customers with >15 cameras or distributed locations
+- **Implementation**: Raspberry Pi/Jetson packages, central-edge sync, lightweight models
+- **Benefits**: Reduced bandwidth, local processing, improved reliability
+
+### Hardware Requirements
+- **Minimum**: Intel i5-8400, 16GB RAM, 500GB SSD ($1,500-2,500)
+- **Recommended**: Intel i7-10700, 32GB RAM, RTX 3070 ($3,000-4,500)
+- **Enterprise**: Xeon/EPYC, 64GB RAM, RTX 4080, RAID storage ($8,000-15,000)
+
+**For detailed deployment specifications, hardware requirements, and IT team communication guides, see [DEPLOYMENT_STRATEGY.md](./DEPLOYMENT_STRATEGY.md)**
 
 ## 🚀 Quick Start
 

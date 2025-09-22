@@ -3,7 +3,8 @@ from typing import List
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.crud import workstation as workstation_crud
+from app.core.database_factory import get_db_service
+from app.core.database_service import DatabaseService
 from app.database import get_db
 from app.schemas.workstation import (
     WorkstationCreate,
@@ -22,11 +23,12 @@ async def read_workstations(
         100, ge=1, le=1000, description="Maximum number of records to return"
     ),
     db: AsyncSession = Depends(get_db),
+    db_service: DatabaseService = Depends(get_db_service),
 ):
     """
     Retrieve all workstations with their zones.
     """
-    workstations = await workstation_crud.get_workstations(db, skip=skip, limit=limit)
+    workstations = await db_service.workstations.get_workstations(db, skip=skip, limit=limit)
     print(f"🔍 API Debug: Found {len(workstations)} workstations")
     for ws in workstations:
         print(f"🔍 Workstation: ID={ws.id}, Name={ws.name}")
@@ -34,11 +36,15 @@ async def read_workstations(
 
 
 @router.get("/{workstation_id}", response_model=WorkstationWithZones)
-async def read_workstation(workstation_id: int, db: AsyncSession = Depends(get_db)):
+async def read_workstation(
+    workstation_id: int,
+    db: AsyncSession = Depends(get_db),
+    db_service: DatabaseService = Depends(get_db_service),
+):
     """
     Get a specific workstation by ID with its zones.
     """
-    workstation = await workstation_crud.get_workstation(
+    workstation = await db_service.workstations.get_workstation(
         db, workstation_id=workstation_id
     )
     if workstation is None:
@@ -48,12 +54,14 @@ async def read_workstation(workstation_id: int, db: AsyncSession = Depends(get_d
 
 @router.post("/", response_model=WorkstationResponse, status_code=201)
 async def create_workstation(
-    workstation: WorkstationCreate, db: AsyncSession = Depends(get_db)
+    workstation: WorkstationCreate,
+    db: AsyncSession = Depends(get_db),
+    db_service: DatabaseService = Depends(get_db_service),
 ):
     """
     Create a new workstation.
     """
-    return await workstation_crud.create_workstation(db=db, workstation=workstation)
+    return await db_service.workstations.create_workstation(db=db, workstation=workstation)
 
 
 @router.put("/{workstation_id}", response_model=WorkstationResponse)
@@ -61,12 +69,13 @@ async def update_workstation(
     workstation_id: int,
     workstation_update: WorkstationUpdate,
     db: AsyncSession = Depends(get_db),
+    db_service: DatabaseService = Depends(get_db_service),
 ):
     """
     Update an existing workstation.
     """
-    workstation = await workstation_crud.update_workstation(
-        db=db, workstation_id=workstation_id, workstation_update=workstation_update
+    workstation = await db_service.workstations.update_workstation(
+        db=db, workstation_id=workstation_id, workstation=workstation_update
     )
     if workstation is None:
         raise HTTPException(status_code=404, detail="Workstation not found")
@@ -74,11 +83,15 @@ async def update_workstation(
 
 
 @router.delete("/{workstation_id}", status_code=204)
-async def delete_workstation(workstation_id: int, db: AsyncSession = Depends(get_db)):
+async def delete_workstation(
+    workstation_id: int,
+    db: AsyncSession = Depends(get_db),
+    db_service: DatabaseService = Depends(get_db_service),
+):
     """
     Delete a workstation.
     """
-    success = await workstation_crud.delete_workstation(
+    success = await db_service.workstations.delete_workstation(
         db=db, workstation_id=workstation_id
     )
     if not success:
@@ -87,12 +100,14 @@ async def delete_workstation(workstation_id: int, db: AsyncSession = Depends(get
 
 @router.get("/{workstation_id}/status", response_model=dict)
 async def get_workstation_status(
-    workstation_id: int, db: AsyncSession = Depends(get_db)
+    workstation_id: int,
+    db: AsyncSession = Depends(get_db),
+    db_service: DatabaseService = Depends(get_db_service),
 ):
     """
     Get current status and statistics for a workstation.
     """
-    workstation = await workstation_crud.get_workstation(
+    workstation = await db_service.workstations.get_workstation(
         db, workstation_id=workstation_id
     )
     if workstation is None:
