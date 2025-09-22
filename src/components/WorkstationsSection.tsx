@@ -154,11 +154,13 @@ export function WorkstationsSection() {
         ))}
       </div>
 
-      <AddWorkstationModal
-        open={showAddModal}
-        onOpenChange={setShowAddModal}
-        onAddWorkstation={handleAddWorkstation}
-      />
+      {showAddModal && (
+        <AddWorkstationModal
+          open={showAddModal}
+          onOpenChange={setShowAddModal}
+          onAddWorkstation={handleAddWorkstation}
+        />
+      )}
     </div>
   );
 }

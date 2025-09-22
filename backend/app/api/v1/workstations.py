@@ -27,6 +27,9 @@ async def read_workstations(
     Retrieve all workstations with their zones.
     """
     workstations = await workstation_crud.get_workstations(db, skip=skip, limit=limit)
+    print(f"🔍 API Debug: Found {len(workstations)} workstations")
+    for ws in workstations:
+        print(f"🔍 Workstation: ID={ws.id}, Name={ws.name}")
     return workstations
 
 

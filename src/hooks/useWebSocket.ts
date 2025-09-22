@@ -272,9 +272,9 @@ export function useWorkstationWebSocket(
   options: Omit<UseWebSocketOptions, 'workstationId'> = {}
 ): UseWebSocketReturn {
   return useWebSocket({
-    ...options,
     workstationId,
-    autoConnect: true
+    autoConnect: true,
+    ...options  // Let options override defaults
   });
 }
 

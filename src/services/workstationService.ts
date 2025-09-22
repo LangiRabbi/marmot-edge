@@ -116,27 +116,35 @@ let mockWorkstations = getMockWorkstations();
 class WorkstationService {
   async getWorkstations(): Promise<Workstation[]> {
     try {
+      console.log('🔍 Frontend: Calling backend API...');
       const response = await apiClient.get<BackendWorkstation[]>('/workstations/');
+      console.log('🔍 Frontend: Backend response:', response.data);
+      console.log('🔍 Frontend: Response length:', response.data.length);
 
       // Transform backend data to frontend interface
-      const transformedData = response.data.map((backendWorkstation) => ({
-        id: backendWorkstation.id,
-        name: backendWorkstation.name,
-        location: backendWorkstation.description || 'No description',
-        status: this.mapBackendStatusToFrontend(backendWorkstation.current_status),
-        people_count: this.calculatePeopleCount(backendWorkstation.zones || []),
-        efficiency: this.calculateEfficiency(backendWorkstation.zones || []),
-        last_activity: backendWorkstation.last_detection_at || 'No recent activity',
-        created_at: backendWorkstation.created_at,
-        updated_at: backendWorkstation.updated_at,
-        video_config: backendWorkstation.video_config
-      }));
+      const transformedData = response.data.map((backendWorkstation) => {
+        console.log('🔍 Frontend: Processing workstation:', backendWorkstation.id, backendWorkstation.name);
+        return {
+          id: backendWorkstation.id,
+          name: backendWorkstation.name,
+          location: backendWorkstation.description || 'No description',
+          status: this.mapBackendStatusToFrontend(backendWorkstation.current_status),
+          people_count: this.calculatePeopleCount(backendWorkstation.zones || []),
+          efficiency: this.calculateEfficiency(backendWorkstation.zones || []),
+          last_activity: backendWorkstation.last_detection_at || 'No recent activity',
+          created_at: backendWorkstation.created_at,
+          updated_at: backendWorkstation.updated_at,
+          video_config: backendWorkstation.video_config
+        };
+      });
 
+      console.log('🔍 Frontend: Transformed data:', transformedData);
       return transformedData;
     } catch (error) {
-      console.warn('Backend not available, using mock data:', error);
+      console.warn('🔍 Frontend: Backend not available, using mock data:', error);
       // Refresh from localStorage in case another tab modified it
       mockWorkstations = getMockWorkstations();
+      console.log('🔍 Frontend: Using mock data:', mockWorkstations);
       return mockWorkstations;
     }
   }

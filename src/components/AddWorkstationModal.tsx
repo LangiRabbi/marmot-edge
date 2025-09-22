@@ -27,6 +27,8 @@ const mockDevices = [
 ];
 
 export function AddWorkstationModal({ open, onOpenChange, onAddWorkstation }: AddWorkstationModalProps) {
+  console.log('[AddWorkstationModal] Rendering with open:', open);
+
   const [formData, setFormData] = useState({
     name: "",
     ipAddress: ""
@@ -492,6 +494,7 @@ export function AddWorkstationModal({ open, onOpenChange, onAddWorkstation }: Ad
                 <div className="relative">
                   <input
                     id="video-file-upload"
+                    key="video-file-upload-unique"
                     ref={fileInputRef}
                     type="file"
                     accept=".mp4,.webm,.mov"
