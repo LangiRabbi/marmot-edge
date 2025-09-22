@@ -498,7 +498,7 @@ export function AddWorkstationModal({ open, onOpenChange, onAddWorkstation }: Ad
                     type="file"
                     accept=".mp4,.webm,.mov"
                     onChange={(e) => setUploadedFile(e.target.files?.[0] || null)}
-                    hidden
+                    style={{ position: 'absolute', left: '-9999px', opacity: 0 }}
                   />
                   <label
                     htmlFor="video-file-upload"
