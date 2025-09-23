@@ -495,6 +495,45 @@ case 'detection_update':
 ### **Estimated Fix Time**: 1-2 hours
 ### **Complexity**: Medium (backend message creation logic)
 
+## 🔧 **ONGOING DEBUG SESSION - 2025-09-23**
+
+### **Current Problem Investigation**
+
+**Issue**: Frontend still receiving 404 errors for `/start-processing` and `/stop-processing` endpoints despite confirmed YOLOv11 detection working perfectly.
+
+#### **Investigation Progress**
+
+1. ✅ **YOLOv11 Detection Verified**: Complete video analysis shows detection working (avg 2.22 persons/frame)
+2. ✅ **Backend Endpoints Exist**: Code shows proper endpoint definitions in workstations.py:132-207
+3. ✅ **BackgroundTasks Usage Confirmed**: Research confirms our implementation is correct (no Depends() needed)
+4. ❌ **OpenAPI Registration**: Endpoints not appearing in `/openapi.json` schema
+5. ❌ **Endpoint Access**: Still returning 404 errors despite server restart
+
+#### **Root Cause Analysis**
+
+**Key Finding**: The `/start-processing` and `/stop-processing` endpoints are **NOT** registered in the OpenAPI schema, which means they're not being loaded by FastAPI.
+
+**Current Status**:
+- Router includes endpoints in code at lines 132-207
+- Server restarts successfully with no errors
+- OpenAPI schema missing both processing endpoints
+- All other workstation endpoints properly registered
+
+#### **Next Steps Planned**
+
+1. **Debug endpoint registration** - Investigate why endpoints fail to register during server startup
+2. **Check import/syntax issues** - Verify no hidden syntax errors preventing registration
+3. **Test direct router registration** - Confirm router inclusion in main FastAPI app
+4. **Fix registration issue** - Apply proper fix once root cause identified
+5. **Verify frontend integration** - Test complete detection pipeline after fix
+
+#### **Technical Context**
+
+- Backend detection system working (2.22 avg persons/frame across 666 frames)
+- WebSocket infrastructure complete and tested
+- Frontend ready to receive detection data
+- Only missing: API endpoint registration for start/stop processing
+
 ### FAZA D: Testing & Polish (2-3h)
 
 **Status**: ✅ Completed

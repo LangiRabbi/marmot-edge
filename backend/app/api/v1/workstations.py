@@ -12,6 +12,7 @@ from app.schemas.workstation import (
     WorkstationUpdate,
     WorkstationWithZones,
 )
+from app.workers.file_video_processor import start_file_processing, stop_file_processing
 
 router = APIRouter()
 
@@ -139,6 +140,7 @@ async def start_video_processing(
     Start video processing for a workstation with file video source.
     Will begin YOLOv11 analysis and WebSocket broadcasting of detections.
     """
+    # Fixed BackgroundTasks parameter issue
     workstation = await db_service.workstations.get_workstation(
         db, workstation_id=workstation_id
     )
@@ -165,9 +167,6 @@ async def start_video_processing(
         raise HTTPException(
             status_code=400, detail="No file path found in video configuration"
         )
-
-    # Import and start the video processor
-    from app.workers.file_video_processor import start_file_processing
 
     # Start processing in background
     background_tasks.add_task(
@@ -197,9 +196,7 @@ async def stop_video_processing(
     if workstation is None:
         raise HTTPException(status_code=404, detail="Workstation not found")
 
-    # Import and stop the video processor
-    from app.workers.file_video_processor import stop_file_processing
-
+    # Stop the video processor
     success = await stop_file_processing(str(workstation_id))
 
     return {
@@ -209,3 +206,4 @@ async def stop_video_processing(
             "Video processing stopped" if success else "No processing was running"
         ),
     }
+

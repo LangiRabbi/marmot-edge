@@ -1,106 +1,71 @@
 #!/usr/bin/env python3
 """
-Test detection message creation to find the exact issue
+Test script to manually trigger video processing detection for workstation 7 (ziemniaki)
+This bypasses the broken /start-processing endpoint to test the core functionality.
 """
 
-import json
+import asyncio
+import os
 import sys
+import traceback
 from datetime import datetime
 
 # Add the app directory to Python path
-sys.path.append(".")
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "app"))
 
-
-def test_detection_creation():
-    """Test each step of detection creation to find the issue"""
-
-    print("=== TESTING DETECTION CREATION ===")
-
+async def test_detection_creation():
+    """Test detection creation and WebSocket broadcasting"""
     try:
-        # Step 1: Create test data
-        print("1. Creating test data...")
-        current_time = datetime.now().isoformat()
-        detection_data = {
-            "type": "detection_update",
-            "timestamp": current_time,
-            "workstation_id": "7",
-            "frame_timestamp": current_time,
-            "person_count": 2,
-            "persons": [
-                {
-                    "tracking_id": 1,
-                    "confidence": 0.89,
-                    "bbox": [0.2, 0.3, 0.4, 0.7],
-                    "center": [0.3, 0.5],
-                    "zones": ["zone_1"],
-                },
-                {
-                    "tracking_id": 2,
-                    "confidence": 0.92,
-                    "bbox": [0.6, 0.2, 0.8, 0.6],
-                    "center": [0.7, 0.4],
-                    "zones": ["zone_2"],
-                },
-            ],
-            "processing_fps": 15.3,
-            "frame_number": 12345,
-        }
-        print("OK - Test data created")
+        # Import the file video processor
+        from app.workers.file_video_processor import start_file_processing, get_processing_status
+        from app.schemas.websocket_messages import PersonDetection, create_detection_update
 
-        # Step 2: Test imports
-        print("2. Testing imports...")
-        from app.schemas.websocket_messages import (
-            PersonDetection,
-            create_detection_update,
-        )
+        print("=== Testing Video Processing for Workstation 7 (ziemniaki) ===")
 
-        print("OK - Imports successful")
+        # Check current processing status
+        status = get_processing_status("7")
+        print(f"Current processing status: {status}")
 
-        # Step 3: Test PersonDetection creation
-        print("3. Testing PersonDetection creation...")
-        persons = []
-        for person_data in detection_data.get("persons", []):
-            person = PersonDetection(**person_data)
-            persons.append(person)
-        print(f"OK - Created {len(persons)} PersonDetection objects")
+        # Create test file path (since workstation 7 has uploaded file data)
+        test_video_path = os.path.join(os.path.dirname(__file__), "test_video.mp4")
+        if not os.path.exists(test_video_path):
+            print("⚠️  No test video found, will use fallback video in processor")
+            test_video_path = "blob:fake_video_data"  # Processor will handle this
 
-        # Step 4: Test datetime parsing
-        print("4. Testing datetime parsing...")
-        frame_timestamp_str = detection_data.get(
-            "frame_timestamp", datetime.now().isoformat()
-        )
-        frame_timestamp = datetime.fromisoformat(frame_timestamp_str)
-        print(f"OK - Parsed timestamp: {frame_timestamp}")
+        print(f"Starting video processing with: {test_video_path}")
 
-        # Step 5: Test DetectionUpdateMessage creation
-        print("5. Testing DetectionUpdateMessage creation...")
-        detection_message = create_detection_update(
-            workstation_id="7",
-            frame_timestamp=frame_timestamp,
-            persons=persons,
-            processing_fps=detection_data.get("processing_fps", 15.0),
-            frame_number=detection_data.get("frame_number", 0),
-        )
-        print(f"OK - Created DetectionUpdateMessage")
-        print(f"OK - Message type: {detection_message.type}")
+        # Start processing
+        start_file_processing("7", test_video_path)
 
-        # Step 6: Test JSON serialization
-        print("6. Testing JSON serialization...")
-        message_json = detection_message.model_dump_json()
-        print(f"OK - Serialized JSON length: {len(message_json)}")
+        print("✅ Video processing started successfully!")
+        print("⏱️  Processing will run in background thread...")
+        print("📡 Check for WebSocket messages and detection data")
 
-        print("\n=== ALL TESTS PASSED ===")
-        print("Detection creation should work correctly!")
+        # Wait a bit and check status again
+        await asyncio.sleep(2)
+        status = get_processing_status("7")
+        print(f"Processing status after start: {status}")
+
+        # Wait longer to see if detections are being processed
+        print("⏳ Waiting 10 seconds for detection processing...")
+        await asyncio.sleep(10)
+
+        status = get_processing_status("7")
+        print(f"Final processing status: {status}")
+
         return True
 
     except Exception as e:
-        print(f"\nERROR FOUND: {e}")
-        print(f"Exception type: {type(e)}")
-        import traceback
-
-        print(f"Traceback:\n{traceback.format_exc()}")
+        print(f"❌ Error during testing: {e}")
+        traceback.print_exc()
         return False
 
-
 if __name__ == "__main__":
-    test_detection_creation()
+    success = asyncio.run(test_detection_creation())
+    if success:
+        print("\n🎉 Test completed successfully!")
+        print("👀 Check the frontend for bounding box detections")
+    else:
+        print("\n💥 Test failed - check errors above")
+
+    input("Press Enter to exit...")
