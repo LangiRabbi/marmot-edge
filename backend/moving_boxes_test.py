@@ -11,7 +11,8 @@ import random
 from datetime import datetime
 
 # Add the app directory to Python path
-sys.path.append('.')
+sys.path.append(".")
+
 
 async def send_moving_boxes():
     """Send moving bounding boxes to simulate YOLO detection"""
@@ -76,16 +77,22 @@ async def send_moving_boxes():
                 "bbox2_x1": bbox2_x1,
                 "bbox2_y1": bbox2_y1,
                 "bbox2_x2": bbox2_x2,
-                "bbox2_y2": bbox2_y2
+                "bbox2_y2": bbox2_y2,
             }
 
             response = requests.post(url, params=params)
 
             if response.status_code == 200:
                 data = response.json()
-                print(f"Frame {frame_number}: Sent 2 moving boxes to workstation {workstation_id}")
-                print(f"  Person 1: ({bbox1_x1:.2f}, {bbox1_y1:.2f}) -> ({bbox1_x2:.2f}, {bbox1_y2:.2f})")
-                print(f"  Person 2: ({bbox2_x1:.2f}, {bbox2_y1:.2f}) -> ({bbox2_x2:.2f}, {bbox2_y2:.2f})")
+                print(
+                    f"Frame {frame_number}: Sent 2 moving boxes to workstation {workstation_id}"
+                )
+                print(
+                    f"  Person 1: ({bbox1_x1:.2f}, {bbox1_y1:.2f}) -> ({bbox1_x2:.2f}, {bbox1_y2:.2f})"
+                )
+                print(
+                    f"  Person 2: ({bbox2_x1:.2f}, {bbox2_y1:.2f}) -> ({bbox2_x2:.2f}, {bbox2_y2:.2f})"
+                )
                 print(f"  Response: {data.get('message', 'No message')}")
             else:
                 print(f"Error: {response.status_code} - {response.text}")
@@ -98,7 +105,9 @@ async def send_moving_boxes():
     except Exception as e:
         print(f"Error: {e}")
         import traceback
+
         traceback.print_exc()
+
 
 if __name__ == "__main__":
     asyncio.run(send_moving_boxes())

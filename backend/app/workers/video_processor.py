@@ -498,7 +498,11 @@ class VideoProcessor:
             # Create person detection data
             persons = []
             for tracking in result.trackings:
-                if "bbox" in tracking and "track_id" in tracking and tracking["track_id"] is not None:
+                if (
+                    "bbox" in tracking
+                    and "track_id" in tracking
+                    and tracking["track_id"] is not None
+                ):
                     bbox = tracking["bbox"]
 
                     # Calculate center point

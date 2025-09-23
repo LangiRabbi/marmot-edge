@@ -8,7 +8,8 @@ import sys
 from datetime import datetime
 
 # Add the app directory to Python path
-sys.path.append('.')
+sys.path.append(".")
+
 
 async def send_single_mock_data():
     """Send one mock detection message"""
@@ -17,7 +18,7 @@ async def send_single_mock_data():
         from app.schemas.websocket_messages import (
             PersonDetection,
             create_detection_update,
-            SubscriptionType
+            SubscriptionType,
         )
         from app.services.websocket_manager import websocket_manager
 
@@ -30,15 +31,15 @@ async def send_single_mock_data():
                 bbox=[0.2, 0.3, 0.4, 0.7],
                 center=[0.3, 0.5],
                 confidence=0.89,
-                zones=["zone_1"]
+                zones=["zone_1"],
             ),
             PersonDetection(
                 tracking_id=2,
                 bbox=[0.6, 0.2, 0.8, 0.6],
                 center=[0.7, 0.4],
                 confidence=0.92,
-                zones=["zone_2"]
-            )
+                zones=["zone_2"],
+            ),
         ]
 
         # Create detection message
@@ -47,7 +48,7 @@ async def send_single_mock_data():
             frame_timestamp=datetime.now(),
             persons=mock_persons,
             processing_fps=15.3,
-            frame_number=12345
+            frame_number=12345,
         )
 
         print(f"Created detection message: {detection_message}")
@@ -56,7 +57,7 @@ async def send_single_mock_data():
         await websocket_manager.broadcast_to_workstation(
             workstation_id="7",
             message=detection_message,
-            subscription_type=SubscriptionType.DETECTIONS
+            subscription_type=SubscriptionType.DETECTIONS,
         )
 
         print("Mock detection message sent successfully!")
@@ -64,7 +65,9 @@ async def send_single_mock_data():
     except Exception as e:
         print(f"Error: {e}")
         import traceback
+
         traceback.print_exc()
+
 
 if __name__ == "__main__":
     print("Sending single mock detection message for debugging...")

@@ -9,7 +9,8 @@ import sys
 from datetime import datetime
 
 # Add the app directory to Python path
-sys.path.append('.')
+sys.path.append(".")
+
 
 async def send_continuous_mock_data():
     """Send mock detection data every 2 seconds"""
@@ -18,7 +19,7 @@ async def send_continuous_mock_data():
         from app.schemas.websocket_messages import (
             PersonDetection,
             create_detection_update,
-            SubscriptionType
+            SubscriptionType,
         )
         from app.services.websocket_manager import websocket_manager
 
@@ -29,21 +30,22 @@ async def send_continuous_mock_data():
 
             # Create mock persons with moving positions
             import random
+
             mock_persons = [
                 PersonDetection(
                     tracking_id=1,
                     bbox=[0.1 + random.random() * 0.3, 0.2, 0.4, 0.6],
                     center=[0.25 + random.random() * 0.2, 0.4],
                     confidence=0.85 + random.random() * 0.1,
-                    zones=["zone_1"]
+                    zones=["zone_1"],
                 ),
                 PersonDetection(
                     tracking_id=2,
                     bbox=[0.5 + random.random() * 0.3, 0.3, 0.8, 0.7],
                     center=[0.65 + random.random() * 0.2, 0.5],
                     confidence=0.88 + random.random() * 0.1,
-                    zones=["zone_2"]
-                )
+                    zones=["zone_2"],
+                ),
             ]
 
             # Create detection message
@@ -52,14 +54,14 @@ async def send_continuous_mock_data():
                 frame_timestamp=datetime.now(),
                 persons=mock_persons,
                 processing_fps=15.0 + random.random() * 5,
-                frame_number=frame_number
+                frame_number=frame_number,
             )
 
             # Broadcast to workstation 7 with specific detection subscription
             await websocket_manager.broadcast_to_workstation(
                 workstation_id="7",
                 message=detection_message,
-                subscription_type=SubscriptionType.DETECTIONS
+                subscription_type=SubscriptionType.DETECTIONS,
             )
 
             frame_number += 1
@@ -70,7 +72,9 @@ async def send_continuous_mock_data():
     except Exception as e:
         print(f"Error: {e}")
         import traceback
+
         traceback.print_exc()
+
 
 if __name__ == "__main__":
     print("Starting continuous mock detection for ziemniaki workstation...")

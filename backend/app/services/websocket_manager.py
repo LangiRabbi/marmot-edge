@@ -238,7 +238,9 @@ class WebSocketManager:
         print(f"[WebSocket] Raw message data: {message_data}")
 
         if connection_id not in self.connections:
-            print(f"[WebSocket] Connection {connection_id} not found in active connections")
+            print(
+                f"[WebSocket] Connection {connection_id} not found in active connections"
+            )
             return
 
         connection_info = self.connections[connection_id]
@@ -305,9 +307,13 @@ class WebSocketManager:
             message: Message to broadcast
             subscription_type: Type of subscription required to receive message
         """
-        print(f"[WebSocket] Broadcasting to workstation {workstation_id}, subscription: {subscription_type}")
+        print(
+            f"[WebSocket] Broadcasting to workstation {workstation_id}, subscription: {subscription_type}"
+        )
         print(f"[WebSocket] Active connections: {len(self.connections)}")
-        print(f"[WebSocket] Workstation subscribers: {dict(self.workstation_subscribers)}")
+        print(
+            f"[WebSocket] Workstation subscribers: {dict(self.workstation_subscribers)}"
+        )
         if subscription_type == SubscriptionType.ALL:
             # Send to all subscribers regardless of subscription type
             all_subscribers = set()
@@ -324,7 +330,9 @@ class WebSocketManager:
             ]
 
         # Send to all subscribers
-        print(f"[WebSocket] Found {len(subscriber_ids)} subscribers: {list(subscriber_ids)}")
+        print(
+            f"[WebSocket] Found {len(subscriber_ids)} subscribers: {list(subscriber_ids)}"
+        )
 
         tasks = []
         for (
@@ -334,7 +342,9 @@ class WebSocketManager:
                 print(f"[WebSocket] Sending to connection {connection_id}")
                 tasks.append(self._send_to_connection(connection_id, message))
             else:
-                print(f"[WebSocket WARNING] Connection {connection_id} not found in active connections")
+                print(
+                    f"[WebSocket WARNING] Connection {connection_id} not found in active connections"
+                )
 
         print(f"[WebSocket] Executing {len(tasks)} send tasks")
         if tasks:
@@ -349,7 +359,9 @@ class WebSocketManager:
         # Check authorization for each workstation
         authorized_workstations = []
         for workstation_id in message.workstation_ids:
-            print(f"[WebSocket] Checking authorization for workstation {workstation_id}")
+            print(
+                f"[WebSocket] Checking authorization for workstation {workstation_id}"
+            )
             if await authorize_workstation_access(connection_info.user, workstation_id):
                 authorized_workstations.append(workstation_id)
                 print(f"[WebSocket] Authorized for workstation {workstation_id}")
@@ -366,7 +378,9 @@ class WebSocketManager:
         # Add subscriptions
         print(f"[WebSocket] Authorized workstations: {authorized_workstations}")
         for workstation_id in authorized_workstations:
-            print(f"[WebSocket] Adding subscription for workstation {workstation_id}, types: {message.subscription_types}")
+            print(
+                f"[WebSocket] Adding subscription for workstation {workstation_id}, types: {message.subscription_types}"
+            )
             connection_info.subscribe_to_workstation(
                 workstation_id, message.subscription_types
             )
@@ -381,17 +395,23 @@ class WebSocketManager:
                         SubscriptionType.EFFICIENCY,
                         SubscriptionType.ALERTS,
                     ]:
-                        print(f"[WebSocket] Adding connection {connection_id} to workstation {workstation_id}, type {actual_type}")
+                        print(
+                            f"[WebSocket] Adding connection {connection_id} to workstation {workstation_id}, type {actual_type}"
+                        )
                         self.workstation_subscribers[workstation_id][actual_type].add(
                             connection_id
                         )
                 else:
-                    print(f"[WebSocket] Adding connection {connection_id} to workstation {workstation_id}, type {sub_type}")
+                    print(
+                        f"[WebSocket] Adding connection {connection_id} to workstation {workstation_id}, type {sub_type}"
+                    )
                     self.workstation_subscribers[workstation_id][sub_type].add(
                         connection_id
                     )
 
-        print(f"[WebSocket] Final subscription state: {dict(self.workstation_subscribers)}")
+        print(
+            f"[WebSocket] Final subscription state: {dict(self.workstation_subscribers)}"
+        )
 
     async def _handle_unsubscribe(self, connection_id: str, message):
         """Handle unsubscription request."""
@@ -448,7 +468,9 @@ class WebSocketManager:
 
         try:
             message_json = message.model_dump_json()
-            print(f"[WebSocket] Sending message to {connection_id}: {message_json[:500]}...")
+            print(
+                f"[WebSocket] Sending message to {connection_id}: {message_json[:500]}..."
+            )
             await connection_info.websocket.send_text(message_json)
             self.total_messages_sent += 1
         except WebSocketDisconnect:

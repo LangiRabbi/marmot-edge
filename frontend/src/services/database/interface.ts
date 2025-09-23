@@ -1,4 +1,5 @@
 // Database abstraction layer interfaces for different deployment scenarios
+import type { VideoSourceConfig } from '@/services/workstationService';
 
 export interface WorkstationData {
   id: number;
@@ -7,7 +8,7 @@ export interface WorkstationData {
   location: string;
   is_active: boolean;
   video_source_type: 'rtsp' | 'usb' | 'file';
-  video_source_config: Record<string, any>;
+  video_source_config: VideoSourceConfig;
   current_status: string;
   last_detection_at?: string;
   created_at: string;
@@ -20,7 +21,7 @@ export interface WorkstationCreate {
   description?: string;
   location: string;
   video_source_type: 'rtsp' | 'usb' | 'file';
-  video_source_config: Record<string, any>;
+  video_source_config: VideoSourceConfig;
 }
 
 export interface WorkstationUpdate {
@@ -29,7 +30,7 @@ export interface WorkstationUpdate {
   location?: string;
   is_active?: boolean;
   video_source_type?: 'rtsp' | 'usb' | 'file';
-  video_source_config?: Record<string, any>;
+  video_source_config?: VideoSourceConfig;
 }
 
 export interface ZoneData {
@@ -82,7 +83,7 @@ export interface DetectionData {
   person_count: number;
   timestamp: string;
   confidence: number;
-  bbox_data?: Record<string, any>;
+  bbox_data?: Record<string, number>;
 }
 
 export interface DatabaseService {
@@ -92,7 +93,7 @@ export interface DatabaseService {
   createWorkstation(data: WorkstationCreate): Promise<WorkstationData>;
   updateWorkstation(id: number, data: WorkstationUpdate): Promise<WorkstationData | null>;
   deleteWorkstation(id: number): Promise<boolean>;
-  getWorkstationStatus(id: number): Promise<Record<string, any>>;
+  getWorkstationStatus(id: number): Promise<Record<string, unknown>>;
 
   // Zone operations
   getZones(workstationId?: number, skip?: number, limit?: number): Promise<ZoneData[]>;

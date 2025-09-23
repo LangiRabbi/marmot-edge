@@ -15,7 +15,7 @@ import cv2
 from ..schemas.websocket_messages import (
     PersonDetection,
     create_detection_update,
-    SubscriptionType
+    SubscriptionType,
 )
 from ..services.websocket_manager import websocket_manager
 from ..services.yolo_service import get_yolo_tracking_service
@@ -49,13 +49,17 @@ class FileVideoProcessor:
         actual_file_path = self.file_path
 
         # For blob URLs or non-existent files, use test video
-        if self.file_path.startswith('blob:') or not os.path.exists(self.file_path):
-            test_video_path = os.path.join(os.path.dirname(__file__), "..", "..", "test_video.mp4")
+        if self.file_path.startswith("blob:") or not os.path.exists(self.file_path):
+            test_video_path = os.path.join(
+                os.path.dirname(__file__), "..", "..", "test_video.mp4"
+            )
             if os.path.exists(test_video_path):
                 actual_file_path = test_video_path
                 logger.info(f"Using test video instead: {actual_file_path}")
             else:
-                logger.error(f"No accessible video file found. Original: {self.file_path}")
+                logger.error(
+                    f"No accessible video file found. Original: {self.file_path}"
+                )
                 return
 
         logger.info(f"Processing video file: {actual_file_path}")
@@ -74,7 +78,9 @@ class FileVideoProcessor:
             width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
             height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
-            logger.info(f"Video properties: {width}x{height}, {fps} FPS, {total_frames} frames")
+            logger.info(
+                f"Video properties: {width}x{height}, {fps} FPS, {total_frames} frames"
+            )
 
             # Calculate frame delay to maintain original FPS
             frame_delay = 1.0 / fps if fps > 0 else 1.0 / 30.0  # Default to 30 FPS
@@ -83,7 +89,9 @@ class FileVideoProcessor:
             while cap.isOpened():
                 # Check stop flag
                 if _processor_stop_flags.get(self.workstation_id, False):
-                    logger.info(f"Stop flag detected for workstation {self.workstation_id}")
+                    logger.info(
+                        f"Stop flag detected for workstation {self.workstation_id}"
+                    )
                     break
 
                 ret, frame = cap.read()
@@ -99,11 +107,13 @@ class FileVideoProcessor:
 
                 try:
                     # Convert frame to bytes for YOLO processing
-                    _, buffer = cv2.imencode('.jpg', frame)
+                    _, buffer = cv2.imencode(".jpg", frame)
                     frame_bytes = buffer.tobytes()
 
                     # Run YOLO detection
-                    trackings = self.yolo_service.track_persons(frame_bytes, persist=True)
+                    trackings = self.yolo_service.track_persons(
+                        frame_bytes, persist=True
+                    )
 
                     # Convert trackings to PersonDetection format
                     persons = []
@@ -112,9 +122,9 @@ class FileVideoProcessor:
                         bbox = tracking["bbox"]
                         norm_bbox = [
                             bbox["x1"] / width,  # x1 normalized
-                            bbox["y1"] / height, # y1 normalized
+                            bbox["y1"] / height,  # y1 normalized
                             bbox["x2"] / width,  # x2 normalized
-                            bbox["y2"] / height  # y2 normalized
+                            bbox["y2"] / height,  # y2 normalized
                         ]
 
                         # Calculate center point
@@ -126,7 +136,7 @@ class FileVideoProcessor:
                             bbox=norm_bbox,
                             center=[center_x, center_y],
                             confidence=tracking["confidence"],
-                            zones=[]  # Zone assignment would be handled by frontend
+                            zones=[],  # Zone assignment would be handled by frontend
                         )
                         persons.append(person)
 
@@ -139,13 +149,15 @@ class FileVideoProcessor:
                         frame_timestamp=datetime.now(),
                         persons=persons,
                         processing_fps=max(self.current_fps, 0.1),  # Ensure FPS is > 0
-                        frame_number=frame_number
+                        frame_number=frame_number,
                     )
 
                     # Broadcast to WebSocket
                     asyncio.run(self._broadcast_detection(detection_message))
 
-                    logger.debug(f"Frame {frame_number}: Detected {len(persons)} persons")
+                    logger.debug(
+                        f"Frame {frame_number}: Detected {len(persons)} persons"
+                    )
 
                 except Exception as e:
                     logger.error(f"Error processing frame {frame_number}: {e}")
@@ -156,9 +168,11 @@ class FileVideoProcessor:
         except Exception as e:
             logger.error(f"Video processing error: {e}")
         finally:
-            if 'cap' in locals():
+            if "cap" in locals():
                 cap.release()
-            logger.info(f"Video processing stopped for workstation {self.workstation_id}")
+            logger.info(
+                f"Video processing stopped for workstation {self.workstation_id}"
+            )
 
     def _update_fps(self):
         """Update FPS calculation"""
@@ -175,7 +189,7 @@ class FileVideoProcessor:
             await websocket_manager.broadcast_to_workstation(
                 workstation_id=self.workstation_id,
                 message=detection_message,
-                subscription_type=SubscriptionType.DETECTIONS
+                subscription_type=SubscriptionType.DETECTIONS,
             )
         except Exception as e:
             logger.error(f"Error broadcasting detection: {e}")
@@ -257,7 +271,7 @@ def get_processing_status(workstation_id: str) -> Dict[str, any]:
         "workstation_id": workstation_id,
         "is_processing": is_running and thread_alive,
         "thread_exists": is_running,
-        "thread_alive": thread_alive
+        "thread_alive": thread_alive,
     }
 
 

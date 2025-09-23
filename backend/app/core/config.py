@@ -7,6 +7,7 @@ from pydantic import BaseSettings
 
 class DeploymentType(Enum):
     """Supported deployment types."""
+
     ONPREMISE = "onpremise"
     CLOUD = "cloud"
     EDGE = "edge"
@@ -14,6 +15,7 @@ class DeploymentType(Enum):
 
 class DatabaseType(Enum):
     """Supported database types."""
+
     POSTGRESQL = "postgresql"
     SQLITE = "sqlite"
     SUPABASE = "supabase"
@@ -21,6 +23,7 @@ class DatabaseType(Enum):
 
 class StorageType(Enum):
     """Supported storage types."""
+
     LOCAL = "local"
     S3 = "s3"
     AZURE = "azure"
@@ -29,6 +32,7 @@ class StorageType(Enum):
 
 class AuthType(Enum):
     """Supported authentication types."""
+
     LOCAL = "local"
     OAUTH = "oauth"
     SAML = "saml"
@@ -51,7 +55,9 @@ class OnPremiseSettings(BaseConfig):
 
     # Database
     DATABASE_TYPE: DatabaseType = DatabaseType.POSTGRESQL
-    DATABASE_URL: str = "postgresql://postgres:postgres@localhost:5432/marmot_industrial"
+    DATABASE_URL: str = (
+        "postgresql://postgres:postgres@localhost:5432/marmot_industrial"
+    )
 
     # Storage
     STORAGE_TYPE: StorageType = StorageType.LOCAL
@@ -215,7 +221,7 @@ def get_deployment_type() -> DeploymentType:
 
 def is_development() -> bool:
     """Check if running in development mode."""
-    return getattr(settings, 'DEBUG', False)
+    return getattr(settings, "DEBUG", False)
 
 
 def is_production() -> bool:
@@ -225,4 +231,4 @@ def is_production() -> bool:
 
 def get_max_video_streams() -> int:
     """Get maximum number of video streams."""
-    return getattr(settings, 'MAX_VIDEO_STREAMS', 8)
+    return getattr(settings, "MAX_VIDEO_STREAMS", 8)

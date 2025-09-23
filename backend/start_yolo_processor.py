@@ -9,7 +9,8 @@ import os
 from pathlib import Path
 
 # Add the app directory to Python path
-sys.path.append('.')
+sys.path.append(".")
+
 
 async def start_video_processing():
     """Start real YOLOv11 processing for video file"""
@@ -30,7 +31,7 @@ async def start_video_processing():
             "wideo_pionowe.mp4",
             "../wideo_pionowe.mp4",
             "uploads/wideo_pionowe.mp4",
-            "static/wideo_pionowe.mp4"
+            "static/wideo_pionowe.mp4",
         ]
 
         for path in possible_paths:
@@ -42,9 +43,9 @@ async def start_video_processing():
             print("Searching for video files...")
             for root, dirs, files in os.walk(".."):
                 for file in files:
-                    if file.endswith(('.mp4', '.avi', '.mov')):
+                    if file.endswith((".mp4", ".avi", ".mov")):
                         print(f"Found video: {os.path.join(root, file)}")
-                        if 'wideo' in file.lower() or 'pionowe' in file.lower():
+                        if "wideo" in file.lower() or "pionowe" in file.lower():
                             video_file = os.path.abspath(os.path.join(root, file))
                             break
                 if video_file:
@@ -73,9 +74,13 @@ async def start_video_processing():
     except Exception as e:
         print(f"Error: {e}")
         import traceback
+
         traceback.print_exc()
+
 
 if __name__ == "__main__":
     print("YOLOv11 Video Processor Starter")
-    print("This will process your video file and send detections to ziemniaki workstation")
+    print(
+        "This will process your video file and send detections to ziemniaki workstation"
+    )
     asyncio.run(start_video_processing())

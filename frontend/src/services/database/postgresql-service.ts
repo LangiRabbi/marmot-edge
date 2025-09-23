@@ -118,8 +118,8 @@ export class PostgreSQLDataService implements DatabaseService {
     }
   }
 
-  async getWorkstationStatus(id: number): Promise<Record<string, any>> {
-    return this.request<Record<string, any>>(`/workstations/${id}/status`);
+  async getWorkstationStatus(id: number): Promise<Record<string, unknown>> {
+    return this.request<Record<string, unknown>>(`/workstations/${id}/status`);
   }
 
   // Zone operations

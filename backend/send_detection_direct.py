@@ -7,7 +7,8 @@ import asyncio
 import sys
 
 # Add the app directory to Python path
-sys.path.append('.')
+sys.path.append(".")
+
 
 async def send_detection_directly():
     """Send detection message through direct function call"""
@@ -21,8 +22,14 @@ async def send_detection_directly():
         # Call the function with workstation 7 and default bounding boxes
         result = await broadcast_detection_message(
             workstation_id="7",
-            bbox1_x1=0.2, bbox1_y1=0.3, bbox1_x2=0.4, bbox1_y2=0.7,
-            bbox2_x1=0.6, bbox2_y1=0.2, bbox2_x2=0.8, bbox2_y2=0.6
+            bbox1_x1=0.2,
+            bbox1_y1=0.3,
+            bbox1_x2=0.4,
+            bbox1_y2=0.7,
+            bbox2_x1=0.6,
+            bbox2_y1=0.2,
+            bbox2_x2=0.8,
+            bbox2_y2=0.6,
         )
 
         print(f"Function result: {result}")
@@ -34,7 +41,9 @@ async def send_detection_directly():
     except Exception as e:
         print(f"Error: {e}")
         import traceback
+
         traceback.print_exc()
+
 
 if __name__ == "__main__":
     print("Sending detection message via direct function call...")

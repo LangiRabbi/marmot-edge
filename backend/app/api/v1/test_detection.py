@@ -19,7 +19,7 @@ async def trigger_mock_detection(workstation_id: str):
     try:
         from app.schemas.websocket_messages import (
             PersonDetection,
-            create_detection_update
+            create_detection_update,
         )
         from app.services.websocket_manager import websocket_manager
 
@@ -30,15 +30,15 @@ async def trigger_mock_detection(workstation_id: str):
                 bbox=[0.2, 0.3, 0.4, 0.7],
                 center=[0.3, 0.5],
                 confidence=0.89,
-                zones=["zone_1"]
+                zones=["zone_1"],
             ),
             PersonDetection(
                 tracking_id=2,
                 bbox=[0.6, 0.2, 0.8, 0.6],
                 center=[0.7, 0.4],
                 confidence=0.92,
-                zones=["zone_2"]
-            )
+                zones=["zone_2"],
+            ),
         ]
 
         # Create detection message
@@ -47,30 +47,27 @@ async def trigger_mock_detection(workstation_id: str):
             frame_timestamp=datetime.now(),
             persons=mock_persons,
             processing_fps=15.3,
-            frame_number=1234
+            frame_number=1234,
         )
 
         # Broadcast via WebSocket
         await websocket_manager.broadcast_to_workstation(
-            workstation_id=workstation_id,
-            message=detection_message
+            workstation_id=workstation_id, message=detection_message
         )
 
-        return JSONResponse({
-            "success": True,
-            "message": f"Mock detection data sent to workstation {workstation_id}",
-            "data": {
-                "person_count": len(mock_persons),
-                "workstation_id": workstation_id,
-                "frame_number": 1234
+        return JSONResponse(
+            {
+                "success": True,
+                "message": f"Mock detection data sent to workstation {workstation_id}",
+                "data": {
+                    "person_count": len(mock_persons),
+                    "workstation_id": workstation_id,
+                    "frame_number": 1234,
+                },
             }
-        })
+        )
 
     except Exception as e:
         return JSONResponse(
-            status_code=500,
-            content={
-                "success": False,
-                "error": str(e)
-            }
+            status_code=500, content={"success": False, "error": str(e)}
         )

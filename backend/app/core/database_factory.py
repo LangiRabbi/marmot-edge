@@ -8,6 +8,7 @@ from app.core.database_service import DatabaseService
 
 class DatabaseType(Enum):
     """Supported database types."""
+
     POSTGRESQL = "postgresql"
     SQLITE = "sqlite"
     # Future: SUPABASE = "supabase"
@@ -21,8 +22,7 @@ class DatabaseFactory:
 
     @classmethod
     def create_database_service(
-        cls,
-        database_type: DatabaseType = None
+        cls, database_type: DatabaseType = None
     ) -> DatabaseService:
         """Create a database service instance based on configuration."""
 
@@ -34,9 +34,11 @@ class DatabaseFactory:
 
         if database_type == DatabaseType.POSTGRESQL:
             from app.core.postgresql_service import PostgreSQLService
+
             service = PostgreSQLService()
         elif database_type == DatabaseType.SQLITE:
             from app.core.postgresql_service import PostgreSQLService
+
             service = PostgreSQLService()
         else:
             raise ValueError(f"Unsupported database type: {database_type}")

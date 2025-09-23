@@ -18,7 +18,7 @@ import { useToast } from "@/hooks/use-toast";
 import { VideoPlayer } from "./VideoPlayer";
 import { Zone } from "./VideoCanvasOverlay";
 import { ConnectionStatus } from "./ConnectionStatus";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import type { VideoSourceConfig } from "@/services/workstationService";
 import { zoneService, type CanvasZone } from "@/services/zoneService";
 import { useWorkstationWebSocket } from "@/hooks/useWebSocket";
@@ -109,7 +109,7 @@ export function WorkstationDetailsModal({ open, onOpenChange, workstation, video
   }, [workstation.id, workstation.name, detectionData, open]);
 
   // Auto-start video processing for file sources
-  const startVideoProcessing = async () => {
+  const startVideoProcessing = useCallback(async () => {
     if (!videoConfig || videoConfig.type !== 'file' || !videoConfig.filePath) {
       return; // Only process file sources
     }
@@ -147,10 +147,10 @@ export function WorkstationDetailsModal({ open, onOpenChange, workstation, video
         variant: "destructive",
       });
     }
-  };
+  }, [videoConfig, workstation.id, toast]);
 
   // Stop video processing
-  const stopVideoProcessing = async () => {
+  const stopVideoProcessing = useCallback(async () => {
     try {
       console.log(`🛑 Stopping video processing for workstation ${workstation.id}`);
       const response = await fetch(`http://localhost:8001/api/v1/workstations/${workstation.id}/stop-processing`, {
@@ -169,7 +169,7 @@ export function WorkstationDetailsModal({ open, onOpenChange, workstation, video
     } catch (error) {
       console.error('❌ Error stopping video processing:', error);
     }
-  };
+  }, [workstation.id]);
 
   // Reset state when modal opens/closes
   useEffect(() => {
@@ -188,7 +188,7 @@ export function WorkstationDetailsModal({ open, onOpenChange, workstation, video
       // Start video processing for file sources
       startVideoProcessing();
     }
-  }, [open, workstation.id, wsConnect]);
+  }, [open, workstation.id, wsConnect, startVideoProcessing, stopVideoProcessing]);
 
   // Handle real-time detection updates
   useEffect(() => {

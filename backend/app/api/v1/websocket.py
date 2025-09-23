@@ -66,10 +66,14 @@ async def websocket_endpoint(websocket: WebSocket, workstation_id: str):
             try:
                 # Receive message from client
                 message_data = await websocket.receive_text()
-                print(f"[WebSocket API] Received message on websocket endpoint: {message_data}")
+                print(
+                    f"[WebSocket API] Received message on websocket endpoint: {message_data}"
+                )
 
                 # Handle the message
-                print(f"[WebSocket API] Calling websocket_manager.handle_message for connection {connection_id}")
+                print(
+                    f"[WebSocket API] Calling websocket_manager.handle_message for connection {connection_id}"
+                )
                 await websocket_manager.handle_message(connection_id, message_data)
 
             except WebSocketDisconnect:
@@ -381,8 +385,11 @@ async def broadcast_test_message(
     try:
         # Move all imports to top level to avoid scope issues
         from app.schemas.websocket_messages import (
-            AlertLevel, AlertMessage, SubscriptionType,
-            PersonDetection, create_detection_update
+            AlertLevel,
+            AlertMessage,
+            SubscriptionType,
+            PersonDetection,
+            create_detection_update,
         )
         from datetime import datetime
         import json
@@ -420,7 +427,7 @@ async def broadcast_test_message(
                 frame_timestamp=frame_timestamp,
                 persons=persons,
                 processing_fps=detection_data.get("processing_fps", 15.0),
-                frame_number=detection_data.get("frame_number", 0)
+                frame_number=detection_data.get("frame_number", 0),
             )
             print(f"[BROADCAST DEBUG] Created DetectionUpdateMessage: {test_message}")
             print(f"[BROADCAST DEBUG] Message type: {test_message.type}")
@@ -465,6 +472,7 @@ async def broadcast_test_message(
     except Exception as e:
         print(f"[BROADCAST DEBUG] FATAL EXCEPTION: {e}")
         import traceback
+
         print(f"[BROADCAST DEBUG] Traceback: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"Broadcast failed: {str(e)}")
 
@@ -472,8 +480,14 @@ async def broadcast_test_message(
 @router.post("/websocket/broadcast-detection")
 async def broadcast_detection_message(
     workstation_id: str,
-    bbox1_x1: float = 0.2, bbox1_y1: float = 0.3, bbox1_x2: float = 0.4, bbox1_y2: float = 0.7,
-    bbox2_x1: float = 0.6, bbox2_y1: float = 0.2, bbox2_x2: float = 0.8, bbox2_y2: float = 0.6
+    bbox1_x1: float = 0.2,
+    bbox1_y1: float = 0.3,
+    bbox1_x2: float = 0.4,
+    bbox1_y2: float = 0.7,
+    bbox2_x1: float = 0.6,
+    bbox2_y1: float = 0.2,
+    bbox2_x2: float = 0.8,
+    bbox2_y2: float = 0.6,
 ):
     """
     Test endpoint for broadcasting detection messages with bounding boxes to WebSocket subscribers.
@@ -481,7 +495,11 @@ async def broadcast_detection_message(
     ⚠️ Development/testing only!
     """
     try:
-        from app.schemas.websocket_messages import PersonDetection, create_detection_update, SubscriptionType
+        from app.schemas.websocket_messages import (
+            PersonDetection,
+            create_detection_update,
+            SubscriptionType,
+        )
         from datetime import datetime
 
         # Create mock persons with customizable bounding boxes
@@ -491,15 +509,15 @@ async def broadcast_detection_message(
                 bbox=[bbox1_x1, bbox1_y1, bbox1_x2, bbox1_y2],
                 center=[(bbox1_x1 + bbox1_x2) / 2, (bbox1_y1 + bbox1_y2) / 2],
                 confidence=0.89,
-                zones=["zone_1"]
+                zones=["zone_1"],
             ),
             PersonDetection(
                 tracking_id=2,
                 bbox=[bbox2_x1, bbox2_y1, bbox2_x2, bbox2_y2],
                 center=[(bbox2_x1 + bbox2_x2) / 2, (bbox2_y1 + bbox2_y2) / 2],
                 confidence=0.92,
-                zones=["zone_2"]
-            )
+                zones=["zone_2"],
+            ),
         ]
 
         # Create detection message
@@ -508,7 +526,7 @@ async def broadcast_detection_message(
             frame_timestamp=datetime.now(),
             persons=mock_persons,
             processing_fps=15.3,
-            frame_number=12345
+            frame_number=12345,
         )
 
         # Broadcast to subscribers using the SAME websocket_manager instance as main app
@@ -528,13 +546,15 @@ async def broadcast_detection_message(
                 "person_count": len(mock_persons),
                 "bounding_boxes": [
                     {"id": 1, "bbox": [bbox1_x1, bbox1_y1, bbox1_x2, bbox1_y2]},
-                    {"id": 2, "bbox": [bbox2_x1, bbox2_y1, bbox2_x2, bbox2_y2]}
-                ]
-            }
+                    {"id": 2, "bbox": [bbox2_x1, bbox2_y1, bbox2_x2, bbox2_y2]},
+                ],
+            },
         }
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Detection broadcast failed: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Detection broadcast failed: {str(e)}"
+        )
 
 
 @router.post("/websocket/clear-connections")

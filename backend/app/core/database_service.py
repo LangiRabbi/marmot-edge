@@ -13,44 +13,30 @@ class WorkstationRepository(Protocol):
     """Protocol for workstation data operations."""
 
     async def get_workstations(
-        self,
-        db: AsyncSession,
-        skip: int = 0,
-        limit: int = 100
+        self, db: AsyncSession, skip: int = 0, limit: int = 100
     ) -> List[Workstation]:
         """Get all workstations with pagination."""
         ...
 
     async def get_workstation(
-        self,
-        db: AsyncSession,
-        workstation_id: int
+        self, db: AsyncSession, workstation_id: int
     ) -> Optional[Workstation]:
         """Get a workstation by ID."""
         ...
 
     async def create_workstation(
-        self,
-        db: AsyncSession,
-        workstation: WorkstationCreate
+        self, db: AsyncSession, workstation: WorkstationCreate
     ) -> Workstation:
         """Create a new workstation."""
         ...
 
     async def update_workstation(
-        self,
-        db: AsyncSession,
-        workstation_id: int,
-        workstation: WorkstationUpdate
+        self, db: AsyncSession, workstation_id: int, workstation: WorkstationUpdate
     ) -> Optional[Workstation]:
         """Update an existing workstation."""
         ...
 
-    async def delete_workstation(
-        self,
-        db: AsyncSession,
-        workstation_id: int
-    ) -> bool:
+    async def delete_workstation(self, db: AsyncSession, workstation_id: int) -> bool:
         """Delete a workstation."""
         ...
 
@@ -59,52 +45,32 @@ class ZoneRepository(Protocol):
     """Protocol for zone data operations."""
 
     async def get_zones(
-        self,
-        db: AsyncSession,
-        skip: int = 0,
-        limit: int = 100
+        self, db: AsyncSession, skip: int = 0, limit: int = 100
     ) -> List[Zone]:
         """Get all zones with pagination."""
         ...
 
     async def get_zones_by_workstation(
-        self,
-        db: AsyncSession,
-        workstation_id: int
+        self, db: AsyncSession, workstation_id: int
     ) -> List[Zone]:
         """Get all zones for a specific workstation."""
         ...
 
-    async def get_zone(
-        self,
-        db: AsyncSession,
-        zone_id: int
-    ) -> Optional[Zone]:
+    async def get_zone(self, db: AsyncSession, zone_id: int) -> Optional[Zone]:
         """Get a zone by ID."""
         ...
 
-    async def create_zone(
-        self,
-        db: AsyncSession,
-        zone: ZoneCreate
-    ) -> Zone:
+    async def create_zone(self, db: AsyncSession, zone: ZoneCreate) -> Zone:
         """Create a new zone."""
         ...
 
     async def update_zone(
-        self,
-        db: AsyncSession,
-        zone_id: int,
-        zone: ZoneUpdate
+        self, db: AsyncSession, zone_id: int, zone: ZoneUpdate
     ) -> Optional[Zone]:
         """Update an existing zone."""
         ...
 
-    async def delete_zone(
-        self,
-        db: AsyncSession,
-        zone_id: int
-    ) -> bool:
+    async def delete_zone(self, db: AsyncSession, zone_id: int) -> bool:
         """Delete a zone."""
         ...
 
@@ -113,28 +79,19 @@ class DetectionRepository(Protocol):
     """Protocol for detection data operations."""
 
     async def get_detections(
-        self,
-        db: AsyncSession,
-        skip: int = 0,
-        limit: int = 100
+        self, db: AsyncSession, skip: int = 0, limit: int = 100
     ) -> List[Detection]:
         """Get all detections with pagination."""
         ...
 
     async def get_detections_by_workstation(
-        self,
-        db: AsyncSession,
-        workstation_id: int,
-        skip: int = 0,
-        limit: int = 100
+        self, db: AsyncSession, workstation_id: int, skip: int = 0, limit: int = 100
     ) -> List[Detection]:
         """Get detections for a specific workstation."""
         ...
 
     async def create_detection(
-        self,
-        db: AsyncSession,
-        detection_data: dict
+        self, db: AsyncSession, detection_data: dict
     ) -> Detection:
         """Create a new detection."""
         ...
@@ -148,10 +105,7 @@ class VideoStreamRepository(Protocol):
         ...
 
     async def update_stream_status(
-        self,
-        db: AsyncSession,
-        stream_id: str,
-        status: str
+        self, db: AsyncSession, stream_id: str, status: str
     ) -> bool:
         """Update video stream status."""
         ...

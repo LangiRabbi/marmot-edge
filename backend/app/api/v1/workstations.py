@@ -28,7 +28,9 @@ async def read_workstations(
     """
     Retrieve all workstations with their zones.
     """
-    workstations = await db_service.workstations.get_workstations(db, skip=skip, limit=limit)
+    workstations = await db_service.workstations.get_workstations(
+        db, skip=skip, limit=limit
+    )
     print(f"🔍 API Debug: Found {len(workstations)} workstations")
     for ws in workstations:
         print(f"🔍 Workstation: ID={ws.id}, Name={ws.name}")
@@ -61,7 +63,9 @@ async def create_workstation(
     """
     Create a new workstation.
     """
-    return await db_service.workstations.create_workstation(db=db, workstation=workstation)
+    return await db_service.workstations.create_workstation(
+        db=db, workstation=workstation
+    )
 
 
 @router.put("/{workstation_id}", response_model=WorkstationResponse)
@@ -144,8 +148,7 @@ async def start_video_processing(
     # Check if workstation has video configuration
     if not workstation.video_config:
         raise HTTPException(
-            status_code=400,
-            detail="Workstation has no video source configuration"
+            status_code=400, detail="Workstation has no video source configuration"
         )
 
     video_config = workstation.video_config
@@ -154,14 +157,13 @@ async def start_video_processing(
     if video_config.get("type") != "file":
         raise HTTPException(
             status_code=400,
-            detail="Only file video sources are supported for processing"
+            detail="Only file video sources are supported for processing",
         )
 
     file_path = video_config.get("filePath")
     if not file_path:
         raise HTTPException(
-            status_code=400,
-            detail="No file path found in video configuration"
+            status_code=400, detail="No file path found in video configuration"
         )
 
     # Import and start the video processor
@@ -169,16 +171,14 @@ async def start_video_processing(
 
     # Start processing in background
     background_tasks.add_task(
-        start_file_processing,
-        workstation_id=str(workstation_id),
-        file_path=file_path
+        start_file_processing, workstation_id=str(workstation_id), file_path=file_path
     )
 
     return {
         "status": "started",
         "workstation_id": workstation_id,
         "file_path": file_path,
-        "message": "Video processing started in background"
+        "message": "Video processing started in background",
     }
 
 
@@ -205,5 +205,7 @@ async def stop_video_processing(
     return {
         "status": "stopped" if success else "not_running",
         "workstation_id": workstation_id,
-        "message": "Video processing stopped" if success else "No processing was running"
+        "message": (
+            "Video processing stopped" if success else "No processing was running"
+        ),
     }

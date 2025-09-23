@@ -7,6 +7,7 @@ import json
 import requests
 from datetime import datetime
 
+
 def send_detection_via_broadcast():
     """Send detection message using the working broadcast endpoint"""
 
@@ -24,18 +25,18 @@ def send_detection_via_broadcast():
                     "confidence": 0.89,
                     "bbox": [0.2, 0.3, 0.4, 0.7],  # x1, y1, x2, y2 (normalized)
                     "center": [0.3, 0.5],
-                    "zones": ["zone_1"]
+                    "zones": ["zone_1"],
                 },
                 {
                     "tracking_id": 2,
                     "confidence": 0.92,
                     "bbox": [0.6, 0.2, 0.8, 0.6],  # x1, y1, x2, y2 (normalized)
                     "center": [0.7, 0.4],
-                    "zones": ["zone_2"]
-                }
+                    "zones": ["zone_2"],
+                },
             ],
             "processing_fps": 15.3,
-            "frame_number": 12345
+            "frame_number": 12345,
         }
 
         # Convert to JSON string for the content parameter
@@ -46,7 +47,7 @@ def send_detection_via_broadcast():
         params = {
             "workstation_id": "7",
             "message_type": "detection_update",
-            "content": content
+            "content": content,
         }
 
         print(f"Sending detection via broadcast endpoint...")
@@ -66,7 +67,9 @@ def send_detection_via_broadcast():
     except Exception as e:
         print(f"Error: {e}")
         import traceback
+
         traceback.print_exc()
+
 
 if __name__ == "__main__":
     print("Sending detection message via broadcast endpoint...")

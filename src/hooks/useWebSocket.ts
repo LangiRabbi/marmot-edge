@@ -142,7 +142,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}): UseWebSocketRet
       default:
         console.log('Unknown message type:', message);
     }
-  }, [addToHistory]);
+  }, [addToHistory, workstationId]);
 
   // State change handler
   const handleStateChange = useCallback((state: ConnectionState, errorMsg?: string) => {

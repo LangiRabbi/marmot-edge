@@ -9,7 +9,8 @@ import sys
 from datetime import datetime
 
 # Add the app directory to Python path
-sys.path.append('.')
+sys.path.append(".")
+
 
 async def send_detection_via_api():
     """Send detection message through main API instead of direct WebSocket manager"""
@@ -18,7 +19,7 @@ async def send_detection_via_api():
         from app.schemas.websocket_messages import (
             PersonDetection,
             create_detection_update,
-            SubscriptionType
+            SubscriptionType,
         )
         from app.services.websocket_manager import websocket_manager
 
@@ -29,17 +30,17 @@ async def send_detection_via_api():
             PersonDetection(
                 tracking_id=1,
                 bbox=[0.2, 0.3, 0.4, 0.7],  # x1, y1, x2, y2 (normalized)
-                center=[0.3, 0.5],           # center x, y
+                center=[0.3, 0.5],  # center x, y
                 confidence=0.89,
-                zones=["zone_1"]
+                zones=["zone_1"],
             ),
             PersonDetection(
                 tracking_id=2,
                 bbox=[0.6, 0.2, 0.8, 0.6],  # x1, y1, x2, y2 (normalized)
-                center=[0.7, 0.4],           # center x, y
+                center=[0.7, 0.4],  # center x, y
                 confidence=0.92,
-                zones=["zone_2"]
-            )
+                zones=["zone_2"],
+            ),
         ]
 
         # Create detection message
@@ -48,7 +49,7 @@ async def send_detection_via_api():
             frame_timestamp=datetime.now(),
             persons=mock_persons,
             processing_fps=15.3,
-            frame_number=12345
+            frame_number=12345,
         )
 
         print(f"Created detection message: {detection_message}")
@@ -61,7 +62,7 @@ async def send_detection_via_api():
         await websocket_manager.broadcast_to_workstation(
             workstation_id="7",
             message=detection_message,
-            subscription_type=SubscriptionType.DETECTIONS
+            subscription_type=SubscriptionType.DETECTIONS,
         )
 
         print("Detection message sent successfully!")
@@ -73,7 +74,9 @@ async def send_detection_via_api():
     except Exception as e:
         print(f"Error: {e}")
         import traceback
+
         traceback.print_exc()
+
 
 if __name__ == "__main__":
     print("Sending detection message via API for testing bounding boxes...")

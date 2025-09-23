@@ -88,12 +88,12 @@ export async function getWorkstation(id: number) {
   return service.getWorkstation(id);
 }
 
-export async function createWorkstation(data: any) {
+export async function createWorkstation(data: WorkstationCreate) {
   const service = getDatabaseService();
   return service.createWorkstation(data);
 }
 
-export async function updateWorkstation(id: number, data: any) {
+export async function updateWorkstation(id: number, data: WorkstationUpdate) {
   const service = getDatabaseService();
   return service.updateWorkstation(id, data);
 }
@@ -108,12 +108,12 @@ export async function getZones(workstationId?: number) {
   return service.getZones(workstationId);
 }
 
-export async function createZone(data: any) {
+export async function createZone(data: ZoneCreate) {
   const service = getDatabaseService();
   return service.createZone(data);
 }
 
-export async function updateZone(id: number, data: any) {
+export async function updateZone(id: number, data: ZoneUpdate) {
   const service = getDatabaseService();
   return service.updateZone(id, data);
 }

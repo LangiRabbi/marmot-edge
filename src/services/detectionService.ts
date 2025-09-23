@@ -176,7 +176,7 @@ export function getZoneNamesForPerson(
 /**
  * Throttle function for smooth animation updates
  */
-export function throttle<T extends (...args: any[]) => any>(
+export function throttle<T extends (...args: unknown[]) => unknown>(
   func: T,
   delay: number
 ): (...args: Parameters<T>) => void {

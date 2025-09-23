@@ -8,7 +8,8 @@ import json
 from datetime import datetime
 
 # Add the app directory to Python path
-sys.path.append('.')
+sys.path.append(".")
+
 
 def test_detection_creation():
     """Test each step of detection creation to find the issue"""
@@ -31,24 +32,28 @@ def test_detection_creation():
                     "confidence": 0.89,
                     "bbox": [0.2, 0.3, 0.4, 0.7],
                     "center": [0.3, 0.5],
-                    "zones": ["zone_1"]
+                    "zones": ["zone_1"],
                 },
                 {
                     "tracking_id": 2,
                     "confidence": 0.92,
                     "bbox": [0.6, 0.2, 0.8, 0.6],
                     "center": [0.7, 0.4],
-                    "zones": ["zone_2"]
-                }
+                    "zones": ["zone_2"],
+                },
             ],
             "processing_fps": 15.3,
-            "frame_number": 12345
+            "frame_number": 12345,
         }
         print("OK - Test data created")
 
         # Step 2: Test imports
         print("2. Testing imports...")
-        from app.schemas.websocket_messages import PersonDetection, create_detection_update
+        from app.schemas.websocket_messages import (
+            PersonDetection,
+            create_detection_update,
+        )
+
         print("OK - Imports successful")
 
         # Step 3: Test PersonDetection creation
@@ -61,7 +66,9 @@ def test_detection_creation():
 
         # Step 4: Test datetime parsing
         print("4. Testing datetime parsing...")
-        frame_timestamp_str = detection_data.get("frame_timestamp", datetime.now().isoformat())
+        frame_timestamp_str = detection_data.get(
+            "frame_timestamp", datetime.now().isoformat()
+        )
         frame_timestamp = datetime.fromisoformat(frame_timestamp_str)
         print(f"OK - Parsed timestamp: {frame_timestamp}")
 
@@ -72,7 +79,7 @@ def test_detection_creation():
             frame_timestamp=frame_timestamp,
             persons=persons,
             processing_fps=detection_data.get("processing_fps", 15.0),
-            frame_number=detection_data.get("frame_number", 0)
+            frame_number=detection_data.get("frame_number", 0),
         )
         print(f"OK - Created DetectionUpdateMessage")
         print(f"OK - Message type: {detection_message.type}")
@@ -90,8 +97,10 @@ def test_detection_creation():
         print(f"\nERROR FOUND: {e}")
         print(f"Exception type: {type(e)}")
         import traceback
+
         print(f"Traceback:\n{traceback.format_exc()}")
         return False
+
 
 if __name__ == "__main__":
     test_detection_creation()

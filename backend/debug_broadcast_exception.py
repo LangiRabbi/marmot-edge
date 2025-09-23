@@ -8,7 +8,8 @@ import json
 from datetime import datetime
 
 # Add the app directory to Python path
-sys.path.append('.')
+sys.path.append(".")
+
 
 def debug_broadcast_exception():
     """Test each step of the broadcast endpoint to isolate the exception"""
@@ -31,18 +32,18 @@ def debug_broadcast_exception():
                     "confidence": 0.89,
                     "bbox": [0.2, 0.3, 0.4, 0.7],
                     "center": [0.3, 0.5],
-                    "zones": ["zone_1"]
+                    "zones": ["zone_1"],
                 },
                 {
                     "tracking_id": 2,
                     "confidence": 0.92,
                     "bbox": [0.6, 0.2, 0.8, 0.6],
                     "center": [0.7, 0.4],
-                    "zones": ["zone_2"]
-                }
+                    "zones": ["zone_2"],
+                },
             ],
             "processing_fps": 15.3,
-            "frame_number": 12345
+            "frame_number": 12345,
         }
         content = json.dumps(detection_data)
         parsed_data = json.loads(content)
@@ -50,7 +51,11 @@ def debug_broadcast_exception():
 
         # Step 2: Test imports
         print("\n2. Testing imports...")
-        from app.schemas.websocket_messages import PersonDetection, create_detection_update
+        from app.schemas.websocket_messages import (
+            PersonDetection,
+            create_detection_update,
+        )
+
         print("✅ Imports successful")
 
         # Step 3: Test PersonDetection creation
@@ -65,7 +70,9 @@ def debug_broadcast_exception():
 
         # Step 4: Test datetime parsing
         print("\n4. Testing datetime parsing...")
-        frame_timestamp_str = parsed_data.get("frame_timestamp", datetime.now().isoformat())
+        frame_timestamp_str = parsed_data.get(
+            "frame_timestamp", datetime.now().isoformat()
+        )
         print(f"Parsing timestamp: {frame_timestamp_str}")
         frame_timestamp = datetime.fromisoformat(frame_timestamp_str)
         print(f"✅ Parsed timestamp: {frame_timestamp}")
@@ -77,7 +84,7 @@ def debug_broadcast_exception():
             frame_timestamp=frame_timestamp,
             persons=persons,
             processing_fps=parsed_data.get("processing_fps", 15.0),
-            frame_number=parsed_data.get("frame_number", 0)
+            frame_number=parsed_data.get("frame_number", 0),
         )
         print(f"✅ Created DetectionUpdateMessage: {detection_message}")
         print(f"✅ Message type: {detection_message.type}")
@@ -94,7 +101,9 @@ def debug_broadcast_exception():
         print(f"\n❌ EXCEPTION FOUND: {e}")
         print(f"Exception type: {type(e)}")
         import traceback
+
         print(f"Traceback:\n{traceback.format_exc()}")
+
 
 if __name__ == "__main__":
     debug_broadcast_exception()

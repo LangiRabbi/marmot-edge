@@ -81,7 +81,11 @@
       "Bash(findstr:*)",
       "Bash(tasklist:*)",
       "Bash(PYTHONPATH=. uvicorn app.main:app --reload --port 8001)",
-      "Bash(PYTHONPATH=. uvicorn app.main:app --port 8001)"
+      "Bash(PYTHONPATH=. uvicorn app.main:app --port 8001)",
+      "Bash(PYTHONPATH=. uvicorn app.main:app --port 8002)",
+      "Bash(TASKKILL /F /IM python.exe)",
+      "Bash(PYTHONPATH=. uvicorn app.main:app --reload --port 8002)",
+      "Bash(start http://localhost:8002/api/v1/websocket/demo)"
     ],
     "deny": [],
     "ask": []

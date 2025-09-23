@@ -7,6 +7,7 @@ import requests
 import time
 import json
 
+
 def send_throttled_detections():
     """Send moving detections with 1 second intervals"""
 
@@ -72,14 +73,16 @@ def send_throttled_detections():
                 "bbox2_x1": round(bbox2_x1, 2),
                 "bbox2_y1": round(bbox2_y1, 2),
                 "bbox2_x2": round(bbox2_x2, 2),
-                "bbox2_y2": round(bbox2_y2, 2)
+                "bbox2_y2": round(bbox2_y2, 2),
             }
 
             response = requests.post(url, params=params)
 
             if response.status_code == 200:
                 data = response.json()
-                print(f"Frame {frame_number:2d}: P1({bbox1_x1:.2f},{bbox1_y1:.2f}) P2({bbox2_x1:.2f},{bbox2_y1:.2f})")
+                print(
+                    f"Frame {frame_number:2d}: P1({bbox1_x1:.2f},{bbox1_y1:.2f}) P2({bbox2_x1:.2f},{bbox2_y1:.2f})"
+                )
                 print(f"   Sent to {data.get('subscribers', 0)} subscribers")
             else:
                 print(f"Error {response.status_code}: {response.text}")
@@ -93,6 +96,7 @@ def send_throttled_detections():
         print(f"Error: {e}")
 
     print("Test complete!")
+
 
 if __name__ == "__main__":
     send_throttled_detections()
