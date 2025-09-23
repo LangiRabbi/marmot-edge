@@ -234,7 +234,11 @@ class WebSocketManager:
             connection_id: Connection identifier
             message_data: Raw JSON message data
         """
+        print(f"[WebSocket] handle_message called for connection {connection_id}")
+        print(f"[WebSocket] Raw message data: {message_data}")
+
         if connection_id not in self.connections:
+            print(f"[WebSocket] Connection {connection_id} not found in active connections")
             return
 
         connection_info = self.connections[connection_id]
@@ -261,12 +265,18 @@ class WebSocketManager:
             connection_info.last_ping = datetime.utcnow()
 
             # Handle different message types
+            print(f"[WebSocket] Parsed message type: {message.type}")
             if message.type == MessageType.SUBSCRIBE:
+                print(f"[WebSocket] Calling _handle_subscribe")
                 await self._handle_subscribe(connection_id, message)
             elif message.type == MessageType.UNSUBSCRIBE:
+                print(f"[WebSocket] Calling _handle_unsubscribe")
                 await self._handle_unsubscribe(connection_id, message)
             elif message.type == MessageType.PING:
+                print(f"[WebSocket] Calling _handle_ping")
                 await self._handle_ping(connection_id)
+            else:
+                print(f"[WebSocket] Unknown message type: {message.type}")
 
         except WebSocketAuthError as e:
             error_message = create_error_message("RATE_LIMIT", e.reason)
@@ -332,13 +342,19 @@ class WebSocketManager:
 
     async def _handle_subscribe(self, connection_id: str, message):
         """Handle subscription request."""
+        print(f"[WebSocket] _handle_subscribe called for connection {connection_id}")
+        print(f"[WebSocket] Message: {message}")
         connection_info = self.connections[connection_id]
 
         # Check authorization for each workstation
         authorized_workstations = []
         for workstation_id in message.workstation_ids:
+            print(f"[WebSocket] Checking authorization for workstation {workstation_id}")
             if await authorize_workstation_access(connection_info.user, workstation_id):
                 authorized_workstations.append(workstation_id)
+                print(f"[WebSocket] Authorized for workstation {workstation_id}")
+            else:
+                print(f"[WebSocket] NOT authorized for workstation {workstation_id}")
 
         if not authorized_workstations:
             error_message = create_error_message(
@@ -348,13 +364,16 @@ class WebSocketManager:
             return
 
         # Add subscriptions
+        print(f"[WebSocket] Authorized workstations: {authorized_workstations}")
         for workstation_id in authorized_workstations:
+            print(f"[WebSocket] Adding subscription for workstation {workstation_id}, types: {message.subscription_types}")
             connection_info.subscribe_to_workstation(
                 workstation_id, message.subscription_types
             )
 
             # Update subscription tracking
             for sub_type in message.subscription_types:
+                print(f"[WebSocket] Processing subscription type: {sub_type}")
                 if sub_type == SubscriptionType.ALL:
                     for actual_type in [
                         SubscriptionType.DETECTIONS,
@@ -362,13 +381,17 @@ class WebSocketManager:
                         SubscriptionType.EFFICIENCY,
                         SubscriptionType.ALERTS,
                     ]:
+                        print(f"[WebSocket] Adding connection {connection_id} to workstation {workstation_id}, type {actual_type}")
                         self.workstation_subscribers[workstation_id][actual_type].add(
                             connection_id
                         )
                 else:
+                    print(f"[WebSocket] Adding connection {connection_id} to workstation {workstation_id}, type {sub_type}")
                     self.workstation_subscribers[workstation_id][sub_type].add(
                         connection_id
                     )
+
+        print(f"[WebSocket] Final subscription state: {dict(self.workstation_subscribers)}")
 
     async def _handle_unsubscribe(self, connection_id: str, message):
         """Handle unsubscription request."""

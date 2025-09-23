@@ -142,13 +142,13 @@ async def start_video_processing(
         raise HTTPException(status_code=404, detail="Workstation not found")
 
     # Check if workstation has video configuration
-    if not workstation.video_source_config:
+    if not workstation.video_config:
         raise HTTPException(
             status_code=400,
             detail="Workstation has no video source configuration"
         )
 
-    video_config = workstation.video_source_config
+    video_config = workstation.video_config
 
     # Only support file type for now
     if video_config.get("type") != "file":

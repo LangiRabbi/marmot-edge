@@ -122,7 +122,7 @@ class FileVideoProcessor:
                         center_y = (bbox["y1"] + bbox["y2"]) / 2 / height
 
                         person = PersonDetection(
-                            tracking_id=tracking.get("track_id", 0),
+                            tracking_id=tracking.get("track_id") or 0,
                             bbox=norm_bbox,
                             center=[center_x, center_y],
                             confidence=tracking["confidence"],
@@ -138,7 +138,7 @@ class FileVideoProcessor:
                         workstation_id=self.workstation_id,
                         frame_timestamp=datetime.now(),
                         persons=persons,
-                        processing_fps=self.current_fps,
+                        processing_fps=max(self.current_fps, 0.1),  # Ensure FPS is > 0
                         frame_number=frame_number
                     )
 

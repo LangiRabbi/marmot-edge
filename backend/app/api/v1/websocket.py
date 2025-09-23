@@ -66,8 +66,10 @@ async def websocket_endpoint(websocket: WebSocket, workstation_id: str):
             try:
                 # Receive message from client
                 message_data = await websocket.receive_text()
+                print(f"[WebSocket API] Received message on websocket endpoint: {message_data}")
 
                 # Handle the message
+                print(f"[WebSocket API] Calling websocket_manager.handle_message for connection {connection_id}")
                 await websocket_manager.handle_message(connection_id, message_data)
 
             except WebSocketDisconnect:

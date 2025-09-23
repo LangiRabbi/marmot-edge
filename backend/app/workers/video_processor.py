@@ -389,7 +389,7 @@ class VideoProcessor:
                 trackings=trackings,
                 zone_analysis=zone_analysis,
                 processing_time_ms=processing_time,
-                fps_current=1000.0 / processing_time if processing_time > 0 else 0.0,
+                fps_current=1000.0 / processing_time if processing_time > 0 else 1.0,
             )
 
         except Exception as e:
@@ -498,7 +498,7 @@ class VideoProcessor:
             # Create person detection data
             persons = []
             for tracking in result.trackings:
-                if "bbox" in tracking and "track_id" in tracking:
+                if "bbox" in tracking and "track_id" in tracking and tracking["track_id"] is not None:
                     bbox = tracking["bbox"]
 
                     # Calculate center point
