@@ -9,6 +9,8 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
+import { PersonDetectionOverlay } from './PersonDetectionOverlay';
+import type { TransformedPersonDetection, ZoneWithStatus } from '@/services/detectionService';
 
 export interface Zone {
   id: number;
@@ -30,6 +32,13 @@ interface VideoCanvasOverlayProps {
   onDrawingModeChange: (mode: boolean) => void;
   maxZones?: number;
   isEditMode?: boolean;
+  // Detection overlay props
+  detections?: TransformedPersonDetection[];
+  zonesWithStatus?: ZoneWithStatus[];
+  showDetections?: boolean;
+  showBoundingBoxes?: boolean;
+  showCenterDots?: boolean;
+  showInfoPanels?: boolean;
 }
 
 interface DrawingState {
@@ -74,7 +83,13 @@ export function VideoCanvasOverlay({
   isDrawingMode,
   onDrawingModeChange,
   maxZones = 10,
-  isEditMode = false
+  isEditMode = false,
+  detections = [],
+  zonesWithStatus,
+  showDetections = true,
+  showBoundingBoxes = true,
+  showCenterDots = true,
+  showInfoPanels = true,
 }: VideoCanvasOverlayProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -180,12 +195,20 @@ export function VideoCanvasOverlay({
       const zoneWidth = (zone.width / 100) * width;
       const zoneHeight = (zone.height / 100) * height;
 
-      // Zone background
-      ctx.fillStyle = zone.color + '40'; // 25% opacity
+      // Use dynamic zone color from detection analysis if available
+      const zoneWithStatus = zonesWithStatus?.find(z => z.id === zone.id);
+      const zoneColor = zoneWithStatus?.dynamic_color || (zone.color + '40');
+      const borderColor = zoneWithStatus ?
+        (zoneWithStatus.dynamic_status === 'Work' ? '#10B981' :
+         zoneWithStatus.dynamic_status === 'Idle' ? '#F59E0B' : '#EF4444')
+        : zone.color;
+
+      // Zone background with dynamic color
+      ctx.fillStyle = zoneColor;
       ctx.fillRect(x, y, zoneWidth, zoneHeight);
 
-      // Zone border
-      ctx.strokeStyle = zone.color;
+      // Zone border with dynamic color
+      ctx.strokeStyle = borderColor;
       ctx.lineWidth = selectedZone === zone.id ? 3 : 2;
       ctx.setLineDash(selectedZone === zone.id ? [5, 5] : []);
       ctx.strokeRect(x, y, zoneWidth, zoneHeight);
@@ -249,7 +272,7 @@ export function VideoCanvasOverlay({
       ctx.fillStyle = '#3B82F640';
       ctx.fillRect(startX, startY, rectWidth, rectHeight);
     }
-  }, [width, height, zones, selectedZone, isDrawingMode, drawingState, percentToPixel, isEditMode]);
+  }, [width, height, zones, zonesWithStatus, selectedZone, isDrawingMode, drawingState, percentToPixel, isEditMode]);
 
   // Mouse event handlers
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
@@ -574,6 +597,19 @@ export function VideoCanvasOverlay({
         onMouseUp={handleMouseUp}
         onContextMenu={(e) => e.preventDefault()}
       />
+
+      {/* Person Detection Overlay */}
+      {showDetections && detections.length > 0 && (
+        <PersonDetectionOverlay
+          detections={detections}
+          zones={zones}
+          width={width}
+          height={height}
+          showBoundingBoxes={showBoundingBoxes}
+          showCenterDots={showCenterDots}
+          showInfoPanels={showInfoPanels}
+        />
+      )}
 
       {/* Zone editing input */}
       {editingZone && (

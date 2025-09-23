@@ -107,6 +107,12 @@ export function useWebSocket(options: UseWebSocketOptions = {}): UseWebSocketRet
     messageCountRef.current++;
     setTotalMessages(prev => prev + 1);
 
+    console.log('🔥 [useWebSocket] Received message:', {
+      type: message.type,
+      workstationId,
+      messageData: message
+    });
+
     switch (message.type) {
       case 'detection_update':
         setLatestDetection(message);
@@ -206,14 +212,24 @@ export function useWebSocket(options: UseWebSocketOptions = {}): UseWebSocketRet
 
   // Auto-connect effect
   useEffect(() => {
+    console.log(`[useWebSocket] Auto-connect check:`, {
+      autoConnect,
+      workstationId,
+      connectionState,
+      shouldConnect: autoConnect && workstationId && connectionState === 'disconnected'
+    });
+
     if (autoConnect && workstationId && connectionState === 'disconnected') {
       // Check if WebSocket service is already connected to the same workstation
       const connectionInfo = websocketService.getConnectionInfo();
+      console.log(`[useWebSocket] Connection info:`, connectionInfo);
+
       if (connectionInfo.currentWorkstationId === workstationId && connectionInfo.isConnected) {
         console.log(`WebSocket already connected to ${workstationId}, skipping auto-connect`);
         return;
       }
 
+      console.log(`[useWebSocket] Attempting to connect to workstation ${workstationId}`);
       connect(workstationId);
     }
   }, [autoConnect, workstationId, connectionState, connect]);

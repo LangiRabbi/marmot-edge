@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>WebSocket Debug</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .log { margin: 5px 0; padding: 10px; background: #f5f5f5; border-radius: 5px; }
+        .received { background: #e3f2fd; }
+        .sent { background: #f3e5f5; }
+        .error { background: #ffebee; color: #c62828; }
+    </style>
+</head>
+<body>
+    <h1>WebSocket Debug Console</h1>
+    <div>
+        <button onclick="connect()">Connect</button>
+        <button onclick="disconnect()">Disconnect</button>
+        <button onclick="sendTest()">Send Test</button>
+        <button onclick="clearLog()">Clear Log</button>
+    </div>
+    <div id="log"></div>
+
+    <script>
+        let ws = null;
+        const logDiv = document.getElementById('log');
+
+        function log(message, type = '') {
+            const div = document.createElement('div');
+            div.className = 'log ' + type;
+            div.textContent = new Date().toLocaleTimeString() + ': ' + message;
+            logDiv.appendChild(div);
+            console.log(message);
+        }
+
+        function clearLog() {
+            logDiv.innerHTML = '';
+        }
+
+        function connect() {
+            if (ws) {
+                log('Already connected', 'error');
+                return;
+            }
+
+            // First get JWT token
+            fetch('http://localhost:8001/api/v1/auth/token', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    username: 'test',
+                    password: 'test'
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.access_token) {
+                    // Connect to WebSocket
+                    const wsUrl = `ws://localhost:8001/api/v1/ws/7?token=${data.access_token}`;
+                    ws = new WebSocket(wsUrl);
+
+                    ws.onopen = () => {
+                        log('WebSocket connected', 'received');
+                        // Subscribe to detections
+                        ws.send(JSON.stringify({
+                            type: 'subscribe',
+                            subscription_type: 'detections'
+                        }));
+                        log('Subscribed to detections', 'sent');
+                    };
+
+                    ws.onmessage = (event) => {
+                        const data = JSON.parse(event.data);
+                        log('Received: ' + JSON.stringify(data), 'received');
+                    };
+
+                    ws.onerror = (error) => {
+                        log('WebSocket error: ' + error, 'error');
+                    };
+
+                    ws.onclose = () => {
+                        log('WebSocket closed', 'error');
+                        ws = null;
+                    };
+                } else {
+                    log('Failed to get token: ' + JSON.stringify(data), 'error');
+                }
+            })
+            .catch(error => {
+                log('Error getting token: ' + error, 'error');
+            });
+        }
+
+        function disconnect() {
+            if (ws) {
+                ws.close();
+                ws = null;
+                log('Disconnected', 'sent');
+            }
+        }
+
+        function sendTest() {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({
+                    type: 'ping'
+                }));
+                log('Sent ping', 'sent');
+            } else {
+                log('WebSocket not connected', 'error');
+            }
+        }
+
+        // Auto-connect on load
+        window.onload = () => {
+            log('Page loaded, connecting to WebSocket...');
+            connect();
+        };
+    </script>
+</body>
+</html>

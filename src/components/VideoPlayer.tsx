@@ -3,6 +3,7 @@ import Hls from 'hls.js';
 import { Button } from '@/components/ui/button';
 import { Play, Pause, Volume2, VolumeX, Maximize } from 'lucide-react';
 import { VideoCanvasOverlay, Zone } from './VideoCanvasOverlay';
+import type { TransformedPersonDetection, ZoneWithStatus } from '@/services/detectionService';
 
 interface VideoPlayerProps {
   src?: string;
@@ -23,6 +24,13 @@ interface VideoPlayerProps {
   onDrawingModeChange?: (mode: boolean) => void;
   maxZones?: number;
   isEditMode?: boolean;
+  // Detection overlay props
+  detections?: TransformedPersonDetection[];
+  zonesWithStatus?: ZoneWithStatus[];
+  showDetections?: boolean;
+  showBoundingBoxes?: boolean;
+  showCenterDots?: boolean;
+  showInfoPanels?: boolean;
 }
 
 export function VideoPlayer({
@@ -43,7 +51,14 @@ export function VideoPlayer({
   isDrawingMode = false,
   onDrawingModeChange,
   maxZones = 10,
-  isEditMode = false
+  isEditMode = false,
+  // Detection overlay props
+  detections = [],
+  zonesWithStatus,
+  showDetections = true,
+  showBoundingBoxes = true,
+  showCenterDots = true,
+  showInfoPanels = true
 }: VideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<Hls | null>(null);
@@ -332,6 +347,12 @@ export function VideoPlayer({
           onDrawingModeChange={onDrawingModeChange || (() => {})}
           maxZones={maxZones}
           isEditMode={isEditMode}
+          detections={detections}
+          zonesWithStatus={zonesWithStatus}
+          showDetections={showDetections}
+          showBoundingBoxes={showBoundingBoxes}
+          showCenterDots={showCenterDots}
+          showInfoPanels={showInfoPanels}
         />
       )}
 

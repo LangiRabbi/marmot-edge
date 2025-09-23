@@ -17,7 +17,7 @@ load_dotenv()
 
 # Configuration from environment
 MAX_CONNECTIONS_PER_IP = int(os.getenv("WEBSOCKET_MAX_CONNECTIONS_PER_IP", "5"))
-MESSAGE_RATE_LIMIT = int(os.getenv("WEBSOCKET_MESSAGE_RATE_LIMIT", "100"))
+MESSAGE_RATE_LIMIT = int(os.getenv("WEBSOCKET_MESSAGE_RATE_LIMIT", "500"))
 RATE_LIMIT_WINDOW = 60  # 1 minute window
 CLEANUP_INTERVAL = 300  # 5 minutes
 

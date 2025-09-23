@@ -1,6 +1,6 @@
 from typing import List
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database_factory import get_db_service
@@ -121,4 +121,89 @@ async def get_workstation_status(
         "zones_count": len(workstation.zones),
         "active_zones": len([z for z in workstation.zones if z.is_active]),
         "last_detection": workstation.last_detection_at,
+    }
+
+
+@router.post("/{workstation_id}/start-processing", response_model=dict)
+async def start_video_processing(
+    workstation_id: int,
+    background_tasks: BackgroundTasks,
+    db: AsyncSession = Depends(get_db),
+    db_service: DatabaseService = Depends(get_db_service),
+):
+    """
+    Start video processing for a workstation with file video source.
+    Will begin YOLOv11 analysis and WebSocket broadcasting of detections.
+    """
+    workstation = await db_service.workstations.get_workstation(
+        db, workstation_id=workstation_id
+    )
+    if workstation is None:
+        raise HTTPException(status_code=404, detail="Workstation not found")
+
+    # Check if workstation has video configuration
+    if not workstation.video_source_config:
+        raise HTTPException(
+            status_code=400,
+            detail="Workstation has no video source configuration"
+        )
+
+    video_config = workstation.video_source_config
+
+    # Only support file type for now
+    if video_config.get("type") != "file":
+        raise HTTPException(
+            status_code=400,
+            detail="Only file video sources are supported for processing"
+        )
+
+    file_path = video_config.get("filePath")
+    if not file_path:
+        raise HTTPException(
+            status_code=400,
+            detail="No file path found in video configuration"
+        )
+
+    # Import and start the video processor
+    from app.workers.file_video_processor import start_file_processing
+
+    # Start processing in background
+    background_tasks.add_task(
+        start_file_processing,
+        workstation_id=str(workstation_id),
+        file_path=file_path
+    )
+
+    return {
+        "status": "started",
+        "workstation_id": workstation_id,
+        "file_path": file_path,
+        "message": "Video processing started in background"
+    }
+
+
+@router.post("/{workstation_id}/stop-processing", response_model=dict)
+async def stop_video_processing(
+    workstation_id: int,
+    db: AsyncSession = Depends(get_db),
+    db_service: DatabaseService = Depends(get_db_service),
+):
+    """
+    Stop video processing for a workstation.
+    """
+    workstation = await db_service.workstations.get_workstation(
+        db, workstation_id=workstation_id
+    )
+    if workstation is None:
+        raise HTTPException(status_code=404, detail="Workstation not found")
+
+    # Import and stop the video processor
+    from app.workers.file_video_processor import stop_file_processing
+
+    success = await stop_file_processing(str(workstation_id))
+
+    return {
+        "status": "stopped" if success else "not_running",
+        "workstation_id": workstation_id,
+        "message": "Video processing stopped" if success else "No processing was running"
     }

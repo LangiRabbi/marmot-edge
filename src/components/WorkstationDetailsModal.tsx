@@ -22,6 +22,7 @@ import { useState, useEffect } from "react";
 import type { VideoSourceConfig } from "@/services/workstationService";
 import { zoneService, type CanvasZone } from "@/services/zoneService";
 import { useWorkstationWebSocket } from "@/hooks/useWebSocket";
+import { useDetectionData } from "@/hooks/useDetectionData";
 import type { DetectionUpdateMessage, ZoneUpdateMessage, EfficiencyUpdateMessage } from "@/services/websocketService";
 
 interface WorkstationDetailsModalProps {
@@ -49,6 +50,12 @@ export function WorkstationDetailsModal({ open, onOpenChange, workstation, video
   const [isLoadingZones, setIsLoadingZones] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
 
+  // Detection overlay state
+  const [showDetections, setShowDetections] = useState(true);
+  const [showBoundingBoxes, setShowBoundingBoxes] = useState(true);
+  const [showCenterDots, setShowCenterDots] = useState(true);
+  const [showInfoPanels, setShowInfoPanels] = useState(true);
+
   // WebSocket integration
   const {
     connectionState,
@@ -71,6 +78,99 @@ export function WorkstationDetailsModal({ open, onOpenChange, workstation, video
   const [realtimeEfficiency, setRealtimeEfficiency] = useState<number>(workstation.efficiency);
   const [realtimeZoneData, setRealtimeZoneData] = useState<Record<string, { count: number; status: string }>>({});
 
+  // Detection data hook - integrates with VideoCanvasOverlay
+  const detectionData = useDetectionData(workstation.id.toString(), {
+    videoWidth: 800,
+    videoHeight: 450,
+    zones,
+    updateThrottleMs: 33, // ~30 FPS
+    autoConnect: open, // Connect when modal is open
+  });
+
+  // Debug logging for WorkstationDetailsModal
+  useEffect(() => {
+    console.log('🏭 [WorkstationDetailsModal] Detection data state:', {
+      workstationId: workstation.id,
+      workstationName: workstation.name,
+      isConnected: detectionData.isConnected,
+      isLoading: detectionData.isLoading,
+      error: detectionData.error,
+      detectionsCount: detectionData.detections.length,
+      detections: detectionData.detections,
+      personCount: detectionData.personCount,
+      processingFps: detectionData.processingFps,
+      frameNumber: detectionData.frameNumber,
+      zonesWithStatusCount: detectionData.zonesWithStatus.length,
+      modalOpen: open
+    });
+    if (detectionData.detections.length === 0) {
+      console.warn('🚨 [WorkstationDetailsModal] NO DETECTIONS - This is why bounding boxes are not showing!');
+    }
+  }, [workstation.id, workstation.name, detectionData, open]);
+
+  // Auto-start video processing for file sources
+  const startVideoProcessing = async () => {
+    if (!videoConfig || videoConfig.type !== 'file' || !videoConfig.filePath) {
+      return; // Only process file sources
+    }
+
+    try {
+      console.log(`🎬 Starting video processing for workstation ${workstation.id}`);
+      const response = await fetch(`http://localhost:8001/api/v1/workstations/${workstation.id}/start-processing`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        console.log('✅ Video processing started:', result);
+        toast({
+          title: "Video Processing Started",
+          description: "YOLO detection is now running for this video",
+        });
+      } else {
+        const error = await response.json();
+        console.error('❌ Failed to start video processing:', error);
+        toast({
+          title: "Processing Start Failed",
+          description: error.detail || "Could not start video processing",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error('❌ Error starting video processing:', error);
+      toast({
+        title: "Processing Error",
+        description: "Failed to start video processing",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Stop video processing
+  const stopVideoProcessing = async () => {
+    try {
+      console.log(`🛑 Stopping video processing for workstation ${workstation.id}`);
+      const response = await fetch(`http://localhost:8001/api/v1/workstations/${workstation.id}/stop-processing`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        console.log('✅ Video processing stopped:', result);
+      } else {
+        console.error('❌ Failed to stop video processing');
+      }
+    } catch (error) {
+      console.error('❌ Error stopping video processing:', error);
+    }
+  };
+
   // Reset state when modal opens/closes
   useEffect(() => {
     if (!open) {
@@ -79,10 +179,14 @@ export function WorkstationDetailsModal({ open, onOpenChange, workstation, video
       setEditingZone(null);
       setEditingName('');
       setIsEditMode(false);
+      // Stop video processing when modal closes
+      stopVideoProcessing();
       // Don't explicitly disconnect - let reference counting handle it
     } else {
       // Connect WebSocket when modal opens
       wsConnect(workstation.id.toString());
+      // Start video processing for file sources
+      startVideoProcessing();
     }
   }, [open, workstation.id, wsConnect]);
 
@@ -587,6 +691,13 @@ export function WorkstationDetailsModal({ open, onOpenChange, workstation, video
                   onDrawingModeChange={setIsDrawingMode}
                   maxZones={10}
                   isEditMode={isEditMode}
+                  // Detection overlay props
+                  detections={detectionData.detections}
+                  zonesWithStatus={detectionData.zonesWithStatus}
+                  showDetections={showDetections}
+                  showBoundingBoxes={showBoundingBoxes}
+                  showCenterDots={showCenterDots}
+                  showInfoPanels={showInfoPanels}
                   onLoadSuccess={() => {
                     toast({
                       title: "Camera Connected",

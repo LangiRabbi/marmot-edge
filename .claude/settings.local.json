@@ -74,7 +74,14 @@
       "Bash(echo $WEBSOCKET_MAX_CONNECTIONS_PER_IP)",
       "Bash(set WEBSOCKET_MAX_CONNECTIONS_PER_IP=20)",
       "Bash(PYTHONPATH=. python:*)",
-      "Bash(npm run build:*)"
+      "Bash(npm run build:*)",
+      "Bash(start http://localhost:8082)",
+      "Bash(find:*)",
+      "Bash(netstat:*)",
+      "Bash(findstr:*)",
+      "Bash(tasklist:*)",
+      "Bash(PYTHONPATH=. uvicorn app.main:app --reload --port 8001)",
+      "Bash(PYTHONPATH=. uvicorn app.main:app --port 8001)"
     ],
     "deny": [],
     "ask": []

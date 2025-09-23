@@ -295,6 +295,9 @@ class WebSocketManager:
             message: Message to broadcast
             subscription_type: Type of subscription required to receive message
         """
+        print(f"[WebSocket] Broadcasting to workstation {workstation_id}, subscription: {subscription_type}")
+        print(f"[WebSocket] Active connections: {len(self.connections)}")
+        print(f"[WebSocket] Workstation subscribers: {dict(self.workstation_subscribers)}")
         if subscription_type == SubscriptionType.ALL:
             # Send to all subscribers regardless of subscription type
             all_subscribers = set()
@@ -311,13 +314,19 @@ class WebSocketManager:
             ]
 
         # Send to all subscribers
+        print(f"[WebSocket] Found {len(subscriber_ids)} subscribers: {list(subscriber_ids)}")
+
         tasks = []
         for (
             connection_id
         ) in subscriber_ids.copy():  # Copy to avoid modification during iteration
             if connection_id in self.connections:
+                print(f"[WebSocket] Sending to connection {connection_id}")
                 tasks.append(self._send_to_connection(connection_id, message))
+            else:
+                print(f"[WebSocket WARNING] Connection {connection_id} not found in active connections")
 
+        print(f"[WebSocket] Executing {len(tasks)} send tasks")
         if tasks:
             await asyncio.gather(*tasks, return_exceptions=True)
 
@@ -415,7 +424,8 @@ class WebSocketManager:
         connection_info = self.connections[connection_id]
 
         try:
-            message_json = message.json()
+            message_json = message.model_dump_json()
+            print(f"[WebSocket] Sending message to {connection_id}: {message_json[:500]}...")
             await connection_info.websocket.send_text(message_json)
             self.total_messages_sent += 1
         except WebSocketDisconnect:

@@ -151,17 +151,17 @@ class WebSocketService {
   async connect(workstationId: string, token?: string): Promise<void> {
     // Increment reference count
     this.connectionRefs++;
-    console.log(`WebSocket connect() called. References: ${this.connectionRefs}`);
+    console.log(`[WebSocket] connect() called for workstation ${workstationId}. References: ${this.connectionRefs}`);
 
     // If already connected to the same workstation, just return
     if (this.ws && this.state === 'connected' && this.currentWorkstationId === workstationId) {
-      console.log('WebSocket already connected to same workstation');
+      console.log('[WebSocket] Already connected to same workstation');
       return;
     }
 
     // If connected to different workstation, close and reconnect
     if (this.ws && this.state === 'connected' && this.currentWorkstationId !== workstationId) {
-      console.log(`Switching workstation from ${this.currentWorkstationId} to ${workstationId}`);
+      console.log(`[WebSocket] Switching workstation from ${this.currentWorkstationId} to ${workstationId}`);
       this.forceDisconnect();
     }
 
@@ -169,7 +169,7 @@ class WebSocketService {
     this.setState('connecting');
 
     try {
-      // Get or generate token
+      // Only get token if auth is required
       if (this.config.authRequired) {
         if (token) {
           this.currentToken = token;
@@ -177,6 +177,9 @@ class WebSocketService {
           // Get demo token for development
           this.currentToken = await this.getDemoToken();
         }
+      } else {
+        console.log('[WebSocket] Auth disabled - connecting without token');
+        this.currentToken = undefined;
       }
 
       // Build WebSocket URL
@@ -185,11 +188,25 @@ class WebSocketService {
         wsUrl += `?token=${this.currentToken}`;
       }
 
+      console.log(`[WebSocket] Attempting to connect to: ${wsUrl}`);
+
       // Create WebSocket connection
       this.ws = new WebSocket(wsUrl);
+      console.log(`[WebSocket] WebSocket instance created, readyState: ${this.ws.readyState}`);
+
       this.setupEventHandlers();
 
+      // Set connection timeout
+      setTimeout(() => {
+        if (this.ws && this.ws.readyState !== WebSocket.OPEN && this.state !== 'connected') {
+          console.error('[WebSocket] Connection timeout - closing WebSocket');
+          this.ws.close();
+          this.setState('error', 'Connection timeout');
+        }
+      }, 10000); // 10 second timeout
+
     } catch (error) {
+      console.error('[WebSocket] Connection error:', error);
       this.setState('error', error instanceof Error ? error.message : 'Connection failed');
       this.scheduleReconnect();
     }
@@ -235,15 +252,27 @@ class WebSocketService {
    * Subscribe to workstation updates
    */
   subscribe(workstationIds: string[], subscriptionTypes: SubscriptionType[] = ['all']): void {
-    // Check if we're connected or in the process of connecting
-    if (!this.ws || (this.ws.readyState !== WebSocket.OPEN && this.state !== 'connected')) {
-      console.warn('Cannot subscribe: WebSocket not connected');
+    console.log(`[WebSocket] subscribe() called for workstations: ${workstationIds}, types: ${subscriptionTypes}`);
+    console.log(`[WebSocket] Current state: ${this.state}, readyState: ${this.ws?.readyState}`);
+
+    // Enhanced connection check
+    if (!this.ws) {
+      console.warn('[WebSocket] Cannot subscribe: WebSocket instance not found');
       return;
     }
 
-    // If WebSocket is opening but state is connected, wait a tiny bit
-    if (this.ws.readyState === WebSocket.CONNECTING && this.state === 'connected') {
-      setTimeout(() => this.subscribe(workstationIds, subscriptionTypes), 10);
+    if (this.ws.readyState !== WebSocket.OPEN) {
+      console.warn(`[WebSocket] Cannot subscribe: WebSocket not OPEN (readyState: ${this.ws.readyState})`);
+      // Queue subscription for when connection is ready
+      if (this.state === 'connecting' || this.state === 'reconnecting') {
+        console.log('[WebSocket] Queueing subscription for when connection is ready');
+        setTimeout(() => this.subscribe(workstationIds, subscriptionTypes), 100);
+      }
+      return;
+    }
+
+    if (this.state !== 'connected') {
+      console.warn(`[WebSocket] Cannot subscribe: Service state not connected (state: ${this.state})`);
       return;
     }
 
@@ -254,10 +283,17 @@ class WebSocketService {
       timestamp: new Date().toISOString()
     };
 
-    this.send(message);
+    console.log('[WebSocket] Sending subscription message:', JSON.stringify(message));
 
-    // Track subscriptions
-    workstationIds.forEach(id => this.subscriptions.add(id));
+    try {
+      this.send(message);
+
+      // Track subscriptions only after successful send
+      workstationIds.forEach(id => this.subscriptions.add(id));
+      console.log(`[WebSocket] Updated subscriptions:`, Array.from(this.subscriptions));
+    } catch (error) {
+      console.error('[WebSocket] Failed to send subscription:', error);
+    }
   }
 
   /**
@@ -360,27 +396,68 @@ class WebSocketService {
     if (!this.ws) return;
 
     this.ws.onopen = () => {
-      console.log('WebSocket connected');
-      this.setState('connected');
-      this.reconnectAttempts = 0;
-      this.startHeartbeat();
+      console.log(`[WebSocket] onopen event fired, readyState: ${this.ws?.readyState}`);
+
+      // Use setTimeout to ensure readyState is properly updated
+      setTimeout(() => {
+        if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+          console.log('[WebSocket] Connection verified - setting state to connected');
+          this.setState('connected');
+          this.reconnectAttempts = 0;
+          this.startHeartbeat();
+
+          // Send immediate ping to verify bidirectional communication
+          console.log('[WebSocket] Sending verification ping');
+          this.ping();
+
+          // Auto-subscribe to current workstation if we have one
+          if (this.currentWorkstationId) {
+            console.log(`[WebSocket] Auto-subscribing to workstation: ${this.currentWorkstationId}`);
+            setTimeout(() => {
+              this.subscribe([this.currentWorkstationId!], ['detections', 'zones', 'efficiency', 'alerts']);
+            }, 50); // Additional delay to ensure ping is sent first
+          }
+        } else {
+          console.error(`[WebSocket] Connection failed - readyState: ${this.ws?.readyState}, expected: ${WebSocket.OPEN}`);
+          this.setState('error', 'Connection verification failed');
+        }
+      }, 10); // Small delay to allow readyState to update
     };
 
     this.ws.onmessage = (event) => {
+      console.log(`[WebSocket] Received message:`, event.data);
       try {
-        const message = JSON.parse(event.data) as WebSocketMessage | { type: 'pong' | 'connected' };
+        const message = JSON.parse(event.data) as WebSocketMessage | { type: 'pong' | 'connected' | 'subscribed' };
 
+        // Handle system messages
         if (message.type === 'pong') {
-          // Handle heartbeat response
+          console.log('[WebSocket] Received pong response - connection verified');
           return;
         }
 
         if (message.type === 'connected') {
-          // Handle connection confirmation
-          console.log('WebSocket connection confirmed');
+          console.log('[WebSocket] Server connection confirmation received');
           return;
         }
 
+        if (message.type === 'subscribed') {
+          console.log('[WebSocket] Subscription confirmed by server');
+          return;
+        }
+
+        // Enhanced detection message handling
+        if (message.type === 'detection_update') {
+          const detectionMsg = message as DetectionUpdateMessage;
+          console.log('[WebSocket] 🎯 Detection message details:', {
+            workstationId: detectionMsg.workstation_id,
+            personCount: detectionMsg.person_count,
+            personsArray: detectionMsg.persons,
+            processingFps: detectionMsg.processing_fps,
+            frameNumber: detectionMsg.frame_number
+          });
+        }
+
+        console.log('[WebSocket] Broadcasting message to listeners:', message.type);
         // Broadcast to listeners
         this.messageListeners.forEach(listener => {
           try {
@@ -391,24 +468,27 @@ class WebSocketService {
         });
 
       } catch (error) {
-        console.error('Error parsing WebSocket message:', error);
+        console.error('[WebSocket] Error parsing message:', error, 'Raw data:', event.data);
       }
     };
 
     this.ws.onclose = (event) => {
-      console.log(`WebSocket closed: ${event.code} - ${event.reason}`);
+      console.log(`[WebSocket] Connection closed: ${event.code} - ${event.reason}`);
       this.clearTimers();
 
       if (event.code !== 1000 && this.reconnectAttempts < this.config.reconnectAttempts) {
+        console.log('[WebSocket] Attempting to reconnect...');
         this.setState('reconnecting');
         this.scheduleReconnect();
       } else {
+        console.log('[WebSocket] Connection closed permanently');
         this.setState('disconnected');
       }
     };
 
     this.ws.onerror = (error) => {
-      console.error('WebSocket error:', error);
+      console.error('[WebSocket] Connection error:', error);
+      console.log(`[WebSocket] Error details - readyState: ${this.ws?.readyState}`);
       this.setState('error', 'Connection error');
     };
   }

@@ -9,7 +9,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 # Import API routers
-from app.api.v1 import detection, seed, video_streams, websocket, workstations, zones
+from app.api.v1 import detection, seed, test_detection, video_streams, websocket, workstations, zones
 from app.core.rate_limiting import rate_limiter
 
 # Import services for graceful shutdown
@@ -105,6 +105,7 @@ app.include_router(
 app.include_router(zones.router, prefix="/api/v1/zones", tags=["zones"])
 app.include_router(seed.router, prefix="/api/v1/seed", tags=["seed"])
 app.include_router(detection.router, prefix="/api/v1/detection", tags=["detection"])
+app.include_router(test_detection.router, prefix="/api/v1/test", tags=["test"])
 app.include_router(video_streams.router, prefix="/api/v1", tags=["video-streams"])
 app.include_router(websocket.router, prefix="/api/v1", tags=["websocket"])
 

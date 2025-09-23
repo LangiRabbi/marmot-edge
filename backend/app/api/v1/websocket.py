@@ -21,7 +21,7 @@ async def websocket_endpoint(websocket: WebSocket, workstation_id: str):
     """
     WebSocket endpoint for real-time workstation monitoring.
 
-    URL Format: ws://localhost:8001/ws/{workstation_id}?token={jwt_token}
+    URL Format: ws://localhost:8001/api/v1/ws/{workstation_id}?token={jwt_token}
 
     Authentication:
     - JWT token required in query parameter: ?token=<jwt_token>
@@ -34,7 +34,7 @@ async def websocket_endpoint(websocket: WebSocket, workstation_id: str):
 
     Example Usage:
     ```javascript
-    const ws = new WebSocket('ws://localhost:8001/ws/workstation_001?token=<jwt>');
+    const ws = new WebSocket('ws://localhost:8001/api/v1/ws/workstation_001?token=<jwt>');
 
     // Subscribe to all updates
     ws.send(JSON.stringify({
@@ -44,12 +44,12 @@ async def websocket_endpoint(websocket: WebSocket, workstation_id: str):
     }));
     ```
     """
-    print(f"🔴 WebSocket attempt for workstation: {workstation_id}")
-    print(f"🔴 Headers: {dict(websocket.headers)}")
-    print(f"🔴 Query params: {dict(websocket.query_params)}")
+    print(f"[WebSocket] Connection attempt for workstation: {workstation_id}")
+    print(f"[WebSocket] Headers: {dict(websocket.headers)}")
+    print(f"[WebSocket] Query params: {dict(websocket.query_params)}")
     from app.core.websocket_auth import WEBSOCKET_AUTH_REQUIRED
 
-    print(f"🔴 Auth required: {WEBSOCKET_AUTH_REQUIRED}")
+    print(f"[WebSocket] Auth required: {WEBSOCKET_AUTH_REQUIRED}")
 
     connection_id = None
 
@@ -377,26 +377,80 @@ async def broadcast_test_message(
     ⚠️ Development/testing only!
     """
     try:
-        from app.schemas.websocket_messages import AlertLevel, AlertMessage
-
-        # Create test alert message
-        test_message = AlertMessage(
-            workstation_id=workstation_id,
-            alert_type=message_type,
-            level=AlertLevel.INFO,
-            title="Test Alert",
-            message=content,
-            data={"test": True},
+        # Move all imports to top level to avoid scope issues
+        from app.schemas.websocket_messages import (
+            AlertLevel, AlertMessage, SubscriptionType,
+            PersonDetection, create_detection_update
         )
+        from datetime import datetime
+        import json
+
+        print(f"[BROADCAST DEBUG] Received request:")
+        print(f"  workstation_id: {workstation_id}")
+        print(f"  message_type: {message_type}")
+        print(f"  content: {content[:200]}...")
+
+        # Check if content is a valid detection update JSON
+        if message_type == "detection_update":
+            print(f"[BROADCAST DEBUG] Processing detection_update message")
+
+            # Parse detection data from content
+            detection_data = json.loads(content)
+            print(f"[BROADCAST DEBUG] Parsed detection_data: {detection_data}")
+
+            # Create PersonDetection objects
+            persons = [
+                PersonDetection(**person_data)
+                for person_data in detection_data.get("persons", [])
+            ]
+            print(f"[BROADCAST DEBUG] Created {len(persons)} PersonDetection objects")
+
+            # Handle frame timestamp with proper default value
+            frame_timestamp_str = detection_data.get("frame_timestamp")
+            if frame_timestamp_str:
+                frame_timestamp = datetime.fromisoformat(frame_timestamp_str)
+            else:
+                frame_timestamp = datetime.now()
+
+            # Create proper DetectionUpdateMessage
+            test_message = create_detection_update(
+                workstation_id=workstation_id,
+                frame_timestamp=frame_timestamp,
+                persons=persons,
+                processing_fps=detection_data.get("processing_fps", 15.0),
+                frame_number=detection_data.get("frame_number", 0)
+            )
+            print(f"[BROADCAST DEBUG] Created DetectionUpdateMessage: {test_message}")
+            print(f"[BROADCAST DEBUG] Message type: {test_message.type}")
+
+            subscription_type = SubscriptionType.DETECTIONS
+            print(f"[BROADCAST DEBUG] Using subscription_type: {subscription_type}")
+
+        else:
+            # Create test alert message for non-detection types
+            test_message = AlertMessage(
+                workstation_id=workstation_id,
+                alert_type=message_type,
+                level=AlertLevel.INFO,
+                title="Test Alert",
+                message=content,
+                data={"test": True},
+            )
+            subscription_type = SubscriptionType.ALERTS
 
         # Broadcast to subscribers
-        from app.schemas.websocket_messages import SubscriptionType
+        print(f"[BROADCAST DEBUG] About to broadcast message:")
+        print(f"  workstation_id: {workstation_id}")
+        print(f"  message: {test_message}")
+        print(f"  subscription_type: {subscription_type}")
 
         await websocket_manager.broadcast_to_workstation(
             workstation_id=workstation_id,
             message=test_message,
-            subscription_type=SubscriptionType.ALERTS,
+            subscription_type=subscription_type,
         )
+
+        print(f"[BROADCAST DEBUG] Broadcast completed")
 
         return {
             "success": True,
@@ -407,7 +461,78 @@ async def broadcast_test_message(
         }
 
     except Exception as e:
+        print(f"[BROADCAST DEBUG] FATAL EXCEPTION: {e}")
+        import traceback
+        print(f"[BROADCAST DEBUG] Traceback: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"Broadcast failed: {str(e)}")
+
+
+@router.post("/websocket/broadcast-detection")
+async def broadcast_detection_message(
+    workstation_id: str,
+    bbox1_x1: float = 0.2, bbox1_y1: float = 0.3, bbox1_x2: float = 0.4, bbox1_y2: float = 0.7,
+    bbox2_x1: float = 0.6, bbox2_y1: float = 0.2, bbox2_x2: float = 0.8, bbox2_y2: float = 0.6
+):
+    """
+    Test endpoint for broadcasting detection messages with bounding boxes to WebSocket subscribers.
+
+    ⚠️ Development/testing only!
+    """
+    try:
+        from app.schemas.websocket_messages import PersonDetection, create_detection_update, SubscriptionType
+        from datetime import datetime
+
+        # Create mock persons with customizable bounding boxes
+        mock_persons = [
+            PersonDetection(
+                tracking_id=1,
+                bbox=[bbox1_x1, bbox1_y1, bbox1_x2, bbox1_y2],
+                center=[(bbox1_x1 + bbox1_x2) / 2, (bbox1_y1 + bbox1_y2) / 2],
+                confidence=0.89,
+                zones=["zone_1"]
+            ),
+            PersonDetection(
+                tracking_id=2,
+                bbox=[bbox2_x1, bbox2_y1, bbox2_x2, bbox2_y2],
+                center=[(bbox2_x1 + bbox2_x2) / 2, (bbox2_y1 + bbox2_y2) / 2],
+                confidence=0.92,
+                zones=["zone_2"]
+            )
+        ]
+
+        # Create detection message
+        detection_message = create_detection_update(
+            workstation_id=workstation_id,
+            frame_timestamp=datetime.now(),
+            persons=mock_persons,
+            processing_fps=15.3,
+            frame_number=12345
+        )
+
+        # Broadcast to subscribers using the SAME websocket_manager instance as main app
+        await websocket_manager.broadcast_to_workstation(
+            workstation_id=workstation_id,
+            message=detection_message,
+            subscription_type=SubscriptionType.DETECTIONS,
+        )
+
+        return {
+            "success": True,
+            "message": f"Detection message broadcasted to workstation {workstation_id}",
+            "subscribers": len(
+                websocket_manager.workstation_subscribers.get(workstation_id, {})
+            ),
+            "detection_data": {
+                "person_count": len(mock_persons),
+                "bounding_boxes": [
+                    {"id": 1, "bbox": [bbox1_x1, bbox1_y1, bbox1_x2, bbox1_y2]},
+                    {"id": 2, "bbox": [bbox2_x1, bbox2_y1, bbox2_x2, bbox2_y2]}
+                ]
+            }
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Detection broadcast failed: {str(e)}")
 
 
 @router.post("/websocket/clear-connections")
