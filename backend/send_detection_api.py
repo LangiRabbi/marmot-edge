@@ -18,8 +18,8 @@ async def send_detection_via_api():
     try:
         from app.schemas.websocket_messages import (
             PersonDetection,
-            create_detection_update,
             SubscriptionType,
+            create_detection_update,
         )
         from app.services.websocket_manager import websocket_manager
 

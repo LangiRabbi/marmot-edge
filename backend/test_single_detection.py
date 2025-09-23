@@ -17,8 +17,8 @@ async def send_single_mock_data():
     try:
         from app.schemas.websocket_messages import (
             PersonDetection,
-            create_detection_update,
             SubscriptionType,
+            create_detection_update,
         )
         from app.services.websocket_manager import websocket_manager
 

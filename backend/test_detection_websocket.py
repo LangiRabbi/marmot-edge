@@ -7,7 +7,7 @@ Creates mock detection data and sends it via WebSocket
 import asyncio
 import sys
 from datetime import datetime
-from typing import Dict, Any, List
+from typing import Any, Dict, List
 
 # Add the app directory to Python path
 sys.path.append(".")
@@ -19,8 +19,8 @@ async def test_detection_broadcast():
     try:
         # Import after adding to path
         from app.schemas.websocket_messages import (
-            PersonDetection,
             DetectionUpdateMessage,
+            PersonDetection,
             create_detection_update,
         )
         from app.services.websocket_manager import websocket_manager

@@ -3,8 +3,8 @@
 Test detection message creation to find the exact issue
 """
 
-import sys
 import json
+import sys
 from datetime import datetime
 
 # Add the app directory to Python path

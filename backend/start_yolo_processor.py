@@ -4,8 +4,8 @@ Start YOLOv11 video processor for real video file
 """
 
 import asyncio
-import sys
 import os
+import sys
 from pathlib import Path
 
 # Add the app directory to Python path
@@ -16,8 +16,8 @@ async def start_video_processing():
     """Start real YOLOv11 processing for video file"""
 
     try:
-        from app.workers.video_processor import get_video_processor
         from app.services.video_service import get_video_manager
+        from app.workers.video_processor import get_video_processor
 
         print("Starting YOLOv11 video processor...")
 

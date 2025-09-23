@@ -3,8 +3,8 @@
 Test DetectionUpdateMessage serialization to check what JSON is produced
 """
 
-import sys
 import json
+import sys
 from datetime import datetime
 
 # Add the app directory to Python path

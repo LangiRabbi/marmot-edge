@@ -384,15 +384,16 @@ async def broadcast_test_message(
     """
     try:
         # Move all imports to top level to avoid scope issues
+        import json
+        from datetime import datetime
+
         from app.schemas.websocket_messages import (
             AlertLevel,
             AlertMessage,
-            SubscriptionType,
             PersonDetection,
+            SubscriptionType,
             create_detection_update,
         )
-        from datetime import datetime
-        import json
 
         print(f"[BROADCAST DEBUG] Received request:")
         print(f"  workstation_id: {workstation_id}")
@@ -495,12 +496,13 @@ async def broadcast_detection_message(
     ⚠️ Development/testing only!
     """
     try:
+        from datetime import datetime
+
         from app.schemas.websocket_messages import (
             PersonDetection,
-            create_detection_update,
             SubscriptionType,
+            create_detection_update,
         )
-        from datetime import datetime
 
         # Create mock persons with customizable bounding boxes
         mock_persons = [

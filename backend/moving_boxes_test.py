@@ -4,11 +4,12 @@ Test script: Send moving bounding boxes every 1 second
 """
 
 import asyncio
-import sys
-import requests
-import time
 import random
+import sys
+import time
 from datetime import datetime
+
+import requests
 
 # Add the app directory to Python path
 sys.path.append(".")

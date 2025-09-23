@@ -1,10 +1,11 @@
 from abc import ABC, abstractmethod
 from typing import List, Optional, Protocol
+
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models.detection import Detection
 from app.models.workstation import Workstation
 from app.models.zone import Zone
-from app.models.detection import Detection
 from app.schemas.workstation import WorkstationCreate, WorkstationUpdate
 from app.schemas.zone import ZoneCreate, ZoneUpdate
 

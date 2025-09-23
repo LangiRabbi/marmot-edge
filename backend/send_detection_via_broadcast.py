@@ -4,8 +4,9 @@ Send detection message via the working broadcast endpoint with custom JSON paylo
 """
 
 import json
-import requests
 from datetime import datetime
+
+import requests
 
 
 def send_detection_via_broadcast():

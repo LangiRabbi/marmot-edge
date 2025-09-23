@@ -3,9 +3,10 @@
 Test script: Send moving bounding boxes with proper throttling (1 per second)
 """
 
-import requests
-import time
 import json
+import time
+
+import requests
 
 
 def send_throttled_detections():

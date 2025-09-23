@@ -1,20 +1,21 @@
 from typing import List, Optional
+
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database_service import (
     DatabaseService,
-    WorkstationRepository,
-    ZoneRepository,
     DetectionRepository,
     VideoStreamRepository,
+    WorkstationRepository,
+    ZoneRepository,
 )
-from app.models.workstation import Workstation
-from app.models.zone import Zone
-from app.models.detection import Detection
-from app.schemas.workstation import WorkstationCreate, WorkstationUpdate
-from app.schemas.zone import ZoneCreate, ZoneUpdate
 from app.crud import workstation as workstation_crud
 from app.crud import zone as zone_crud
+from app.models.detection import Detection
+from app.models.workstation import Workstation
+from app.models.zone import Zone
+from app.schemas.workstation import WorkstationCreate, WorkstationUpdate
+from app.schemas.zone import ZoneCreate, ZoneUpdate
 
 
 class PostgreSQLWorkstationRepository:

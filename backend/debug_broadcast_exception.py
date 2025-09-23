@@ -3,8 +3,8 @@
 Debug the exact exception in broadcast endpoint processing
 """
 
-import sys
 import json
+import sys
 from datetime import datetime
 
 # Add the app directory to Python path

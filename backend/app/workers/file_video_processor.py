@@ -14,8 +14,8 @@ import cv2
 
 from ..schemas.websocket_messages import (
     PersonDetection,
-    create_detection_update,
     SubscriptionType,
+    create_detection_update,
 )
 from ..services.websocket_manager import websocket_manager
 from ..services.yolo_service import get_yolo_tracking_service
