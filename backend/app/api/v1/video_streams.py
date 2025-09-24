@@ -7,13 +7,12 @@ import logging
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, HTTPException
 from pydantic import BaseModel, Field
 
 from ...services.video_service import (
     Rectangle,
     StreamConfig,
-    StreamStatus,
     get_video_manager,
 )
 from ...workers.video_processor import get_video_processor

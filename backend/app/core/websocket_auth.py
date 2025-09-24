@@ -8,8 +8,8 @@ from typing import Optional
 from urllib.parse import parse_qs
 
 from dotenv import load_dotenv
-from fastapi import HTTPException, WebSocket, status
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from fastapi import WebSocket, status
+from fastapi.security import HTTPBearer
 
 from .auth import TokenData, get_current_user
 from .rate_limiting import rate_limiter

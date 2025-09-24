@@ -107,11 +107,14 @@ export function useWebSocket(options: UseWebSocketOptions = {}): UseWebSocketRet
     messageCountRef.current++;
     setTotalMessages(prev => prev + 1);
 
-    console.log('🔥 [useWebSocket] Received message:', {
-      type: message.type,
-      workstationId,
-      messageData: message
-    });
+    // Only log important messages to reduce console spam
+    if (message.type === 'detection_update' || message.type === 'error') {
+      console.log('🔥 [useWebSocket] Important message:', {
+        type: message.type,
+        workstationId,
+        personCount: message.type === 'detection_update' ? message.person_count : undefined
+      });
+    }
 
     switch (message.type) {
       case 'detection_update':
@@ -212,17 +215,10 @@ export function useWebSocket(options: UseWebSocketOptions = {}): UseWebSocketRet
 
   // Auto-connect effect
   useEffect(() => {
-    console.log(`[useWebSocket] Auto-connect check:`, {
-      autoConnect,
-      workstationId,
-      connectionState,
-      shouldConnect: autoConnect && workstationId && connectionState === 'disconnected'
-    });
-
+    // Auto-connect logic - reduced logging to prevent spam
     if (autoConnect && workstationId && connectionState === 'disconnected') {
       // Check if WebSocket service is already connected to the same workstation
       const connectionInfo = websocketService.getConnectionInfo();
-      console.log(`[useWebSocket] Connection info:`, connectionInfo);
 
       if (connectionInfo.currentWorkstationId === workstationId && connectionInfo.isConnected) {
         console.log(`WebSocket already connected to ${workstationId}, skipping auto-connect`);
@@ -234,12 +230,9 @@ export function useWebSocket(options: UseWebSocketOptions = {}): UseWebSocketRet
     }
   }, [autoConnect, workstationId, connectionState, connect]);
 
-  // Auto-subscribe effect
-  useEffect(() => {
-    if (connectionState === 'connected' && workstationId) {
-      subscribe([workstationId], subscriptionTypes);
-    }
-  }, [connectionState, workstationId, subscribe, subscriptionTypes]);
+  // Auto-subscribe effect - DISABLED
+  // Subscription is now handled by websocketService when "connected" message is received
+  // This prevents duplicate subscriptions and readyState:0 warnings
 
   // Cleanup on unmount
   useEffect(() => {

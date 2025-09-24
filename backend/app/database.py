@@ -2,7 +2,6 @@ import os
 from contextlib import asynccontextmanager
 
 from dotenv import load_dotenv
-from sqlalchemy import create_engine
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 

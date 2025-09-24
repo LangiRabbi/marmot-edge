@@ -11,10 +11,9 @@ import time
 from dataclasses import dataclass
 from enum import Enum
 from queue import Empty, Queue
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 import cv2
-import numpy as np
 
 logger = logging.getLogger(__name__)
 

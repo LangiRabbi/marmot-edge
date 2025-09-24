@@ -215,7 +215,7 @@ export function VideoPlayer({
         video.load();
       }
     };
-  }, [currentSrc, sourceType]); // Remove callbacks from dependencies to prevent re-render loop
+  }, [currentSrc, sourceType, width, height, fallbackSrc, usingFallback]); // React to currentSrc changes for fallback functionality
 
   // Auto-hide controls logic
   const resetControlsTimer = useCallback(() => {

@@ -5,7 +5,7 @@ import sys
 from contextlib import asynccontextmanager
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 # Import API routers
@@ -27,6 +27,62 @@ from app.workers.video_processor import get_video_processor
 # Load environment variables
 load_dotenv()
 
+# Shared shutdown flag
+_shutdown_requested = False
+
+
+async def shutdown_services():
+    """Centralized shutdown logic for all services"""
+    global _shutdown_requested
+    if _shutdown_requested:
+        return  # Prevent duplicate shutdown
+    _shutdown_requested = True
+
+    print("Shutting down Marmot Industrial Monitoring System...")
+    success = True
+
+    try:
+        # Shutdown video processing system
+        video_processor = get_video_processor()
+        video_manager = get_video_manager()
+
+        print("Shutting down video processor...")
+        video_processor.shutdown()
+
+        print("Shutting down video manager...")
+        video_manager.shutdown()
+
+        print("Shutting down rate limiter...")
+        await rate_limiter.stop()
+        print("Rate limiter stopped")
+
+        print("Graceful shutdown completed")
+    except Exception as e:
+        print(f"Error during shutdown: {e}")
+        success = False
+
+    return success
+
+
+def signal_handler(signum, frame):
+    """Signal handler that triggers async shutdown"""
+    print(f"Received signal {signum}, initiating graceful shutdown...")
+
+    # Create new event loop for shutdown in signal context
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+
+    try:
+        success = loop.run_until_complete(shutdown_services())
+        exit_code = 0 if success else 1
+    except Exception as e:
+        print(f"Critical error during signal shutdown: {e}")
+        exit_code = 1
+    finally:
+        loop.close()
+
+    sys.exit(exit_code)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -37,70 +93,41 @@ async def lifespan(app: FastAPI):
     await rate_limiter.start()
     print("Rate limiter started")
 
-    # Setup graceful shutdown handlers
-    def signal_handler(signum, frame):
-        print(f"Received signal {signum}, initiating graceful shutdown...")
-
-        try:
-            # Shutdown video processing system
-            video_processor = get_video_processor()
-            video_manager = get_video_manager()
-
-            print("Shutting down video processor...")
-            video_processor.shutdown()
-
-            print("Shutting down video manager...")
-            video_manager.shutdown()
-
-            print("Shutting down rate limiter...")
-            asyncio.run(rate_limiter.stop())
-
-            print("Graceful shutdown completed")
-        except Exception as e:
-            print(f"Error during shutdown: {e}")
-
-        sys.exit(0)
-
     # Register signal handlers
     signal.signal(signal.SIGINT, signal_handler)  # Ctrl+C
     signal.signal(signal.SIGTERM, signal_handler)  # Docker stop
 
     yield
 
-    # Shutdown
-    print("Shutting down Marmot Industrial Monitoring System...")
-    try:
-        video_processor = get_video_processor()
-        video_manager = get_video_manager()
-        video_processor.shutdown()
-        video_manager.shutdown()
-
-        # Stop rate limiter
-        await rate_limiter.stop()
-        print("Rate limiter stopped")
-    except Exception as e:
-        print(f"Error during lifespan shutdown: {e}")
+    # Shutdown - use centralized shutdown logic
+    await shutdown_services()
 
 
 # Create FastAPI app
 app = FastAPI(
     title="Marmot Industrial Monitoring System",
-    description="Real-time person detection and efficiency monitoring for industrial workstations",
+    description=(
+        "Real-time person detection and efficiency monitoring "
+        "for industrial workstations"
+    ),
     version="1.0.0",
     lifespan=lifespan,
 )
 
+# Configure CORS origins from environment
+cors_origins = [
+    os.getenv("FRONTEND_URL", "http://localhost:8083"),  # Primary frontend URL
+]
+
+# Add development ports if in development mode
+if os.getenv("ENVIRONMENT", "development") == "development":
+    dev_ports = os.getenv("DEV_CORS_PORTS", "3000,8080,8081,8082,8083").split(",")
+    cors_origins.extend([f"http://localhost:{port.strip()}" for port in dev_ports])
+
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        os.getenv("FRONTEND_URL", "http://localhost:8080"),
-        "http://localhost:3000",  # Backup for development
-        "http://localhost:8080",  # Original port
-        "http://localhost:8081",  # Alternative port 1
-        "http://localhost:8082",  # Alternative port 2
-        "http://localhost:8083",  # Current frontend port
-    ],
+    allow_origins=cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

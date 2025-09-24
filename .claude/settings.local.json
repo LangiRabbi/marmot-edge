@@ -86,7 +86,11 @@
       "Bash(TASKKILL /F /IM python.exe)",
       "Bash(PYTHONPATH=. uvicorn app.main:app --reload --port 8002)",
       "Bash(start http://localhost:8002/api/v1/websocket/demo)",
-      "Bash(TASKKILL /F /IM \"python.exe\")"
+      "Bash(TASKKILL /F /IM \"python.exe\")",
+      "Bash(claude mcp:*)",
+      "Bash(docker run:*)",
+      "Bash(flake8:*)",
+      "Bash(echo:*)"
     ],
     "deny": [],
     "ask": []

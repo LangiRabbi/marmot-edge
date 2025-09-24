@@ -1,6 +1,6 @@
 from typing import Any, Dict, Optional
 
-from sqlalchemy import JSON, Boolean, Float, Integer, String
+from sqlalchemy import JSON, Boolean, Float, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from .base import BaseModel

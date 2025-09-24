@@ -5,7 +5,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.models.workstation import Workstation
-from app.models.zone import Zone
 from app.schemas.workstation import WorkstationCreate, WorkstationUpdate
 
 

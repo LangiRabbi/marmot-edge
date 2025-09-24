@@ -8,7 +8,7 @@ import os
 import threading
 import time
 from datetime import datetime
-from typing import Dict, Optional
+from typing import Dict
 
 import cv2
 

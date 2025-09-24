@@ -206,4 +206,3 @@ async def stop_video_processing(
             "Video processing stopped" if success else "No processing was running"
         ),
     }
-

@@ -179,36 +179,9 @@ class VideoStreamService {
     }
   }
 
-  async startStream(id: number): Promise<void> {
-    try {
-      await apiClient.post(`/video-streams/${id}/start`);
-    } catch (error) {
-      console.warn('Backend not available, using mock response:', error);
-      const stream = mockVideoStreams.find(s => s.id === id);
-      if (stream) {
-        stream.status = 'connecting';
-        setTimeout(() => {
-          stream.status = 'active';
-          stream.fps = 15;
-          stream.last_frame_at = new Date().toISOString();
-        }, 2000);
-      }
-    }
-  }
-
-  async stopStream(id: number): Promise<void> {
-    try {
-      await apiClient.post(`/video-streams/${id}/stop`);
-    } catch (error) {
-      console.warn('Backend not available, using mock response:', error);
-      const stream = mockVideoStreams.find(s => s.id === id);
-      if (stream) {
-        stream.status = 'inactive';
-        stream.fps = 0;
-        stream.last_frame_at = undefined;
-      }
-    }
-  }
+  // REMOVED: startStream() and stopStream() methods
+  // Reason: Backend runs autonomously 24/7, frontend doesn't control processing
+  // Architecture: Frontend = visualization only, Backend = independent industrial monitoring
 
   async getStreamStatus(id: number): Promise<StreamStatus> {
     try {

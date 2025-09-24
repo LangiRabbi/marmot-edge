@@ -3,11 +3,9 @@ WebSocket endpoints for real-time communication.
 Provides secure, authenticated WebSocket connections for industrial monitoring.
 """
 
-import asyncio
 import json
-from typing import Dict
 
-from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse
 
 from app.core.rate_limiting import rate_limiter

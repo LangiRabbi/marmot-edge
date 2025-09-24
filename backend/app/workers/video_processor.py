@@ -14,7 +14,6 @@ from typing import Any, Dict, List, Optional
 
 from ..services.video_service import Rectangle, get_video_manager
 from ..services.yolo_service import get_yolo_tracking_service
-from ..services.zone_analyzer import ZoneAnalyzer
 
 logger = logging.getLogger(__name__)
 

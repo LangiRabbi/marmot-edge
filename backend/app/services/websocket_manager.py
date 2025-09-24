@@ -25,7 +25,6 @@ from app.core.websocket_auth import (
     unregister_connection,
 )
 from app.schemas.websocket_messages import (
-    ClientMessage,
     ConnectedMessage,
     DisconnectedMessage,
     MessageType,

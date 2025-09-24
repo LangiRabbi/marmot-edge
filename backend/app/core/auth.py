@@ -5,7 +5,7 @@ Provides secure token generation, validation, and user management.
 
 import os
 from datetime import datetime, timedelta
-from typing import Any, Optional, Union
+from typing import Optional
 
 from jose import JWTError, jwt
 from passlib.context import CryptContext

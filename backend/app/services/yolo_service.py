@@ -4,10 +4,8 @@ YOLOv11 person detection and tracking service with BoT-SORT
 
 import io
 import logging
-import os
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Tuple
 
-import cv2
 import numpy as np
 from PIL import Image
 from ultralytics import YOLO

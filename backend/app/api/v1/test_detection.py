@@ -3,7 +3,6 @@ Test endpoint for manually triggering detection data broadcasting
 Helps isolate WebSocket issues from YOLOv11 processing issues
 """
 
-import asyncio
 from datetime import datetime
 
 from fastapi import APIRouter

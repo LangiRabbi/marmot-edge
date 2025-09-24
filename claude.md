@@ -250,6 +250,37 @@ Required MCP tools for this project:
 - [ ] Reports & export
 - [ ] Production deployment
 
+## 🏗️ **System Architecture - Autonomous Backend**
+
+### **Principle: Backend Independence**
+- **Backend**: Runs 24/7 industrial monitoring autonomously
+- **Frontend**: Visualization layer only, does NOT control processing
+- **Video Streams**: Auto-start based on workstation configuration
+- **Detection**: Continuous, independent of UI interactions
+
+### **INCORRECT Pattern:** ❌
+```typescript
+// Frontend controls when detection starts/stops via API calls
+await videoStreamService.startStream(workstationId);  // WRONG
+await videoStreamService.stopStream(workstationId);   // WRONG
+```
+
+### **CORRECT Pattern:** ✅
+```typescript
+// Backend auto-manages all processing, frontend subscribes to results
+const { latestDetection } = useWebSocket(workstationId, { autoConnect: true });
+// Frontend only receives and visualizes data
+```
+
+### **Architecture Flow:**
+```
+Backend (Autonomous)           Frontend (Visualization)
+├── YOLOv11 Detection 24/7     ├── VideoPlayer = Preview
+├── WebSocket Broadcasting     ├── Real-time Bounding Boxes
+├── Database Persistence       ├── Zone Drawing Tools
+└── Independent Processing     └── Dashboard Analytics
+```
+
 ## Next Steps
 1. Review `plan.md` for current checkpoint
 2. Follow debugging procedures from `debug-guide.md`
