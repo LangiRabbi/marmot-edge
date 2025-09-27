@@ -9,7 +9,7 @@ import {
   formatConfidence,
   getZoneNamesForPerson,
 } from '@/services/detectionService';
-import type { Zone } from './VideoCanvasOverlay';
+import type { CanvasZone as Zone } from '@/types';
 
 interface PersonDetectionOverlayProps {
   // Detection data to render
@@ -53,7 +53,7 @@ const PersonBoundingBox = memo(({
     top: `${bbox.y1}px`,
     width: `${bbox.width}px`,
     height: `${bbox.height}px`,
-    border: '2px solid white',
+    border: '2px solid lime',
     borderRadius: '2px',
     background: 'transparent',
     pointerEvents: 'none',

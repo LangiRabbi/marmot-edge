@@ -4,7 +4,7 @@
  */
 
 import type { PersonDetection } from './websocketService';
-import type { Zone } from '@/components/VideoCanvasOverlay';
+import type { CanvasZone as Zone, ZoneStatus } from '@/types';
 
 // Transformed person detection for rendering
 export interface TransformedPersonDetection {
@@ -25,14 +25,14 @@ export interface TransformedPersonDetection {
     y: number;
   };
   // Zone status determined by center point position
-  zone_status: 'Work' | 'Idle' | 'Other' | 'None';
+  zone_status: ZoneStatus | 'none';
   zone_ids: string[];
 }
 
 // Zone with updated status based on center dot analysis
 export interface ZoneWithStatus extends Zone {
   center_dots_count: number;
-  dynamic_status: 'Idle' | 'Work' | 'Other';
+  dynamic_status: ZoneStatus;
   dynamic_color: string;
 }
 
@@ -46,10 +46,30 @@ export function transformDetectionCoordinates(
 ): TransformedPersonDetection[] {
   return persons.map(person => {
     // Transform normalized bbox [x1, y1, x2, y2] to pixels
-    const x1 = person.bbox[0] * videoWidth;
-    const y1 = person.bbox[1] * videoHeight;
-    const x2 = person.bbox[2] * videoWidth;
-    const y2 = person.bbox[3] * videoHeight;
+    let x1 = person.bbox[0] * videoWidth;
+    let y1 = person.bbox[1] * videoHeight;
+    let x2 = person.bbox[2] * videoWidth;
+    let y2 = person.bbox[3] * videoHeight;
+
+    // Clamp to video bounds to avoid overflow when dimensions mismatch
+    const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v));
+
+    const orig = { x1, y1, x2, y2 };
+
+    x1 = clamp(x1, 0, videoWidth);
+    y1 = clamp(y1, 0, videoHeight);
+    x2 = clamp(x2, 0, videoWidth);
+    y2 = clamp(y2, 0, videoHeight);
+
+    if (x1 !== orig.x1 || y1 !== orig.y1 || x2 !== orig.x2 || y2 !== orig.y2) {
+      console.warn('🛑 [transformDetectionCoordinates] Clamped bbox due to dimension mismatch', {
+        personId: person.tracking_id,
+        orig,
+        clamped: { x1, y1, x2, y2 },
+        videoWidth,
+        videoHeight
+      });
+    }
 
     // Calculate center point for zone analysis
     const centerX = (x1 + x2) / 2;
@@ -119,17 +139,17 @@ export function analyzeZonesWithCenterDots(
     const centerDotsCount = centerDotsInZone.length;
 
     // Determine zone status based on center dot count
-    let dynamicStatus: 'Idle' | 'Work' | 'Other';
+    let dynamicStatus: 'idle' | 'work' | 'other';
     let dynamicColor: string;
 
     if (centerDotsCount === 0) {
-      dynamicStatus = 'Idle';
+      dynamicStatus = 'idle';
       dynamicColor = 'rgba(255, 255, 0, 0.3)'; // Yellow
     } else if (centerDotsCount === 1) {
-      dynamicStatus = 'Work';
+      dynamicStatus = 'work';
       dynamicColor = 'rgba(0, 255, 0, 0.3)'; // Green
     } else {
-      dynamicStatus = 'Other';
+      dynamicStatus = 'other';
       dynamicColor = 'rgba(255, 165, 0, 0.3)'; // Orange
     }
 

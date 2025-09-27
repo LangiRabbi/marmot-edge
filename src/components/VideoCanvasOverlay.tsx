@@ -11,17 +11,7 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { PersonDetectionOverlay } from './PersonDetectionOverlay';
 import type { TransformedPersonDetection, ZoneWithStatus } from '@/services/detectionService';
-
-export interface Zone {
-  id: number;
-  name: string;
-  x: number; // percentage 0-100
-  y: number; // percentage 0-100
-  width: number; // percentage 0-100
-  height: number; // percentage 0-100
-  color: string;
-  status: 'Work' | 'Idle' | 'Other';
-}
+import type { CanvasZone as Zone } from '@/types';
 
 interface VideoCanvasOverlayProps {
   width: number;
@@ -199,8 +189,8 @@ export function VideoCanvasOverlay({
       const zoneWithStatus = zonesWithStatus?.find(z => z.id === zone.id);
       const zoneColor = zoneWithStatus?.dynamic_color || (zone.color + '40');
       const borderColor = zoneWithStatus ?
-        (zoneWithStatus.dynamic_status === 'Work' ? '#10B981' :
-         zoneWithStatus.dynamic_status === 'Idle' ? '#F59E0B' : '#EF4444')
+        (zoneWithStatus.dynamic_status === 'work' ? '#10B981' :
+         zoneWithStatus.dynamic_status === 'idle' ? '#F59E0B' : '#EF4444')
         : zone.color;
 
       // Zone background with dynamic color
@@ -483,7 +473,7 @@ export function VideoCanvasOverlay({
           width: sizePercent.x,
           height: sizePercent.y,
           color: ZONE_COLORS[zones.length % ZONE_COLORS.length],
-          status: 'Idle'
+          status: 'idle'
         };
 
         onZonesChange([...zones, newZone]);

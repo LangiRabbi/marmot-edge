@@ -16,11 +16,12 @@ import {
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { VideoPlayer } from "./VideoPlayer";
-import { Zone } from "./VideoCanvasOverlay";
+import type { CanvasZone as Zone } from "@/types";
 import { ConnectionStatus } from "./ConnectionStatus";
 import { useState, useEffect, useCallback } from "react";
 import type { VideoSourceConfig } from "@/services/workstationService";
-import { zoneService, type CanvasZone } from "@/services/zoneService";
+import { zoneService } from "@/services/zoneService";
+import type { CanvasZone, ZoneStatus } from "@/types";
 import { useWorkstationWebSocket } from "@/hooks/useWebSocket";
 import { useDetectionData } from "@/hooks/useDetectionData";
 import type { DetectionUpdateMessage, ZoneUpdateMessage, EfficiencyUpdateMessage } from "@/services/websocketService";
@@ -79,9 +80,13 @@ export function WorkstationDetailsModal({ open, onOpenChange, workstation, video
   const [realtimeZoneData, setRealtimeZoneData] = useState<Record<string, { count: number; status: string }>>({});
 
   // Detection data hook - integrates with VideoCanvasOverlay
+  // Dynamic video dimensions (updated from VideoPlayer loadedmetadata)
+  const [videoWidth, setVideoWidth] = useState<number>(800);
+  const [videoHeight, setVideoHeight] = useState<number>(450);
+
   const detectionData = useDetectionData(workstation.id.toString(), {
-    videoWidth: 800,
-    videoHeight: 450,
+    videoWidth,
+    videoHeight,
     zones,
     updateThrottleMs: 33, // ~30 FPS
     autoConnect: open, // Connect when modal is open
@@ -152,7 +157,7 @@ export function WorkstationDetailsModal({ open, onOpenChange, workstation, video
       latestZoneUpdate.zones.forEach(zone => {
         zoneData[zone.zone_id] = {
           count: zone.person_count,
-          status: zone.person_count > 0 ? 'Work' : 'Idle'
+          status: zone.person_count > 0 ? 'work' : 'idle'
         };
       });
 
@@ -162,7 +167,7 @@ export function WorkstationDetailsModal({ open, onOpenChange, workstation, video
       setZones(prevZones =>
         prevZones.map(zone => ({
           ...zone,
-          status: zoneData[zone.id]?.status || 'Idle'
+          status: (zoneData[zone.id]?.status || 'idle') as ZoneStatus
         }))
       );
     }
@@ -202,9 +207,9 @@ export function WorkstationDetailsModal({ open, onOpenChange, workstation, video
           });
           // Set some default zones as fallback
           setZones([
-            { id: 1, name: 'Assembly Area', x: 20, y: 20, width: 30, height: 25, color: '#3B82F6', status: 'Work' },
-            { id: 2, name: 'Quality Control', x: 55, y: 20, width: 25, height: 20, color: '#10B981', status: 'Idle' },
-            { id: 3, name: 'Packaging Station', x: 20, y: 50, width: 28, height: 30, color: '#F59E0B', status: 'Work' },
+            { id: 1, name: 'Assembly Area', x: 20, y: 20, width: 30, height: 25, color: '#3B82F6', status: 'work' },
+            { id: 2, name: 'Quality Control', x: 55, y: 20, width: 25, height: 20, color: '#10B981', status: 'idle' },
+            { id: 3, name: 'Packaging Station', x: 20, y: 50, width: 28, height: 30, color: '#F59E0B', status: 'work' },
           ]);
         } finally {
           setIsLoadingZones(false);
@@ -228,7 +233,11 @@ export function WorkstationDetailsModal({ open, onOpenChange, workstation, video
     switch (videoConfig.type) {
       case 'file': {
         // Check if blob URL is still valid, fallback to default if not
-        const filePath = videoConfig.filePath;
+        // Prefer backend-served path if provided (e.g., backend API or static URL)
+        const filePath = videoConfig.filePath || (videoConfig as VideoSourceConfig & { backendPath?: string }).backendPath;
+        if (!filePath) {
+          console.warn('⚠️ [WorkstationDetailsModal] videoConfig.filePath is missing - falling back to sample video');
+        }
         if (filePath && filePath.startsWith('blob:')) {
           // For blob URLs, we'll let VideoPlayer handle the error and fallback
           return {
@@ -247,6 +256,12 @@ export function WorkstationDetailsModal({ open, onOpenChange, workstation, video
         return {
           src: "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8",
           sourceType: "hls" as const
+        };
+      case 'ip':
+        // IP Camera - HLS/HTTP streams
+        return {
+          src: videoConfig.url || "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
+          sourceType: videoConfig.url?.endsWith('.m3u8') ? "hls" as const : "file" as const
         };
       case 'usb':
         return {
@@ -271,18 +286,18 @@ export function WorkstationDetailsModal({ open, onOpenChange, workstation, video
 
   const getZoneStatusColor = (status: string) => {
     switch (status) {
-      case 'Work': return 'text-success';
-      case 'Idle': return 'text-muted-foreground';
-      case 'Other': return 'text-warning';
+      case 'work': return 'text-success';
+      case 'idle': return 'text-muted-foreground';
+      case 'other': return 'text-warning';
       default: return 'text-muted-foreground';
     }
   };
 
   const getZoneStatusBg = (status: string) => {
     switch (status) {
-      case 'Work': return 'bg-success/20 border-success/30';
-      case 'Idle': return 'bg-muted/20 border-muted';
-      case 'Other': return 'bg-warning/20 border-warning/30';
+      case 'work': return 'bg-success/20 border-success/30';
+      case 'idle': return 'bg-muted/20 border-muted';
+      case 'other': return 'bg-warning/20 border-warning/30';
       default: return 'bg-muted/20 border-muted';
     }
   };
@@ -519,7 +534,10 @@ export function WorkstationDetailsModal({ open, onOpenChange, workstation, video
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-7xl bg-background border-border" onClick={(e) => e.stopPropagation()}>
+      <DialogContent
+        className="max-w-[80vw] sm:max-w-4xl max-h-[80vh] p-6 bg-background/95 backdrop-blur-md border border-border/50 rounded-lg overflow-y-auto shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
         <DialogHeader>
           <div className="flex items-start justify-between pr-8">
             <div className="flex flex-col gap-2">
@@ -617,11 +635,16 @@ export function WorkstationDetailsModal({ open, onOpenChange, workstation, video
                   src={getVideoSource().src}
                   sourceType={getVideoSource().sourceType}
                   fallbackSrc={getVideoSource().fallbackSrc}
-                  width={800}
-                  height={450}
+                  width={videoWidth}
+                  height={videoHeight}
                   autoPlay={true}
                   controls={true}
                   className="w-full"
+                  onLoadedMetadata={(w, h) => {
+                    setVideoWidth(w);
+                    setVideoHeight(h);
+                    console.log('WorkstationDetailsModal: video metadata received', { w, h });
+                  }}
                   // Zone management props
                   zones={zones}
                   onZonesChange={handleZonesChange}
@@ -651,6 +674,35 @@ export function WorkstationDetailsModal({ open, onOpenChange, workstation, video
                     });
                   }}
                 />
+              </div>
+
+              {/* Debug Panel: shows current video dimensions and detection data for visual verification */}
+              <div className="mt-2 p-3 bg-muted/10 rounded-md border border-border text-xs">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="font-medium">Video Debug</div>
+                  <div className="text-muted-foreground">Open console for detailed logs</div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <div className="text-muted-foreground">Dimensions</div>
+                    <div className="font-mono">{videoWidth} x {videoHeight}</div>
+                  </div>
+
+                  <div>
+                    <div className="text-muted-foreground">Detections</div>
+                    <div className="font-mono">{detectionData.detections.length} transformed</div>
+                  </div>
+                </div>
+
+                <div className="mt-3 max-h-36 overflow-auto bg-black/5 p-2 rounded">
+                  <pre className="text-[10px]">
+{JSON.stringify({
+  raw: latestDetection?.persons?.slice(0,10) || [],
+  transformed: detectionData.detections?.slice(0,10) || []
+}, null, 2)}
+                  </pre>
+                </div>
               </div>
             </div>
 

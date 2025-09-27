@@ -12,7 +12,7 @@ import {
   type TransformedPersonDetection,
   type ZoneWithStatus,
 } from '@/services/detectionService';
-import type { Zone } from '@/components/VideoCanvasOverlay';
+import type { CanvasZone as Zone } from '@/types';
 import type { DetectionUpdateMessage } from '@/services/websocketService';
 
 export interface DetectionDataState {

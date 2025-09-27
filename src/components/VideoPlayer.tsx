@@ -1,8 +1,9 @@
-import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react';
+import React, { useRef, useEffect, useState, useCallback, useMemo, forwardRef, useImperativeHandle } from 'react';
 import Hls from 'hls.js';
 import { Button } from '@/components/ui/button';
 import { Play, Pause, Volume2, VolumeX, Maximize } from 'lucide-react';
-import { VideoCanvasOverlay, Zone } from './VideoCanvasOverlay';
+import { VideoCanvasOverlay } from './VideoCanvasOverlay';
+import type { CanvasZone as Zone } from '@/types';
 import type { TransformedPersonDetection, ZoneWithStatus } from '@/services/detectionService';
 
 interface VideoPlayerProps {
@@ -16,6 +17,8 @@ interface VideoPlayerProps {
   className?: string;
   onLoadError?: (error: string) => void;
   onLoadSuccess?: () => void;
+  // Callback when the underlying video element reports its natural dimensions
+  onLoadedMetadata?: (width: number, height: number) => void;
   // Zone management props
   zones?: Zone[];
   onZonesChange?: (zones: Zone[]) => void;
@@ -33,33 +36,42 @@ interface VideoPlayerProps {
   showInfoPanels?: boolean;
 }
 
-export function VideoPlayer({
-  src,
-  sourceType,
-  fallbackSrc,
-  width = 500,
-  height = 500,
-  autoPlay = false,
-  controls = true,
-  className = "",
-  onLoadError,
-  onLoadSuccess,
-  // Zone management props
-  zones = [],
-  onZonesChange,
-  showZoneOverlay = false,
-  isDrawingMode = false,
-  onDrawingModeChange,
-  maxZones = 10,
-  isEditMode = false,
-  // Detection overlay props
-  detections = [],
-  zonesWithStatus,
-  showDetections = true,
-  showBoundingBoxes = true,
-  showCenterDots = true,
-  showInfoPanels = true
-}: VideoPlayerProps) {
+export interface VideoPlayerHandle {
+  videoElement?: HTMLVideoElement | null;
+  getDimensions: () => { width: number; height: number };
+}
+
+export const VideoPlayer = forwardRef<VideoPlayerHandle, VideoPlayerProps>((props, ref) => {
+  const {
+    src,
+    sourceType,
+    fallbackSrc,
+    width = 500,
+    height = 500,
+    autoPlay = false,
+    controls = true,
+    className = "",
+    onLoadError,
+    onLoadSuccess,
+    // Zone management props
+    zones = [],
+    onZonesChange,
+    showZoneOverlay = false,
+    isDrawingMode = false,
+    onDrawingModeChange,
+    maxZones = 10,
+    isEditMode = false,
+    // Detection overlay props
+    detections = [],
+    zonesWithStatus,
+    showDetections = true,
+    showBoundingBoxes = true,
+    showCenterDots = true,
+    showInfoPanels = true,
+    // new metadata callback
+    onLoadedMetadata,
+  } = props as VideoPlayerProps & { onLoadedMetadata?: (w: number, h: number) => void };
+
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<Hls | null>(null);
   const [isPlaying, setIsPlaying] = useState(autoPlay);
@@ -84,6 +96,18 @@ export function VideoPlayer({
   const handleLoadSuccessCallback = useCallback(() => {
     if (onLoadSuccess) onLoadSuccess();
   }, [onLoadSuccess]);
+
+  // Expose imperative handle to parent components
+  useImperativeHandle(ref, () => ({
+    videoElement: videoRef.current,
+    getDimensions: () => {
+      const el = videoRef.current;
+      return {
+        width: el ? el.videoWidth || width : width,
+        height: el ? el.videoHeight || height : height,
+      };
+    }
+  } as VideoPlayerHandle), [videoRef, width, height]);
 
   // Reset fallback state when src changes
   useEffect(() => {
@@ -110,6 +134,24 @@ export function VideoPlayer({
       handleLoadSuccessCallback();
     };
 
+  const handleLoadedMetadataEvent = (ev?: Event) => {
+      if (!isMounted) return;
+      const videoEl = videoRef.current;
+      if (!videoEl) return;
+      const w = videoEl.videoWidth || width;
+      const h = videoEl.videoHeight || height;
+      console.log('Video loaded metadata, dimensions:', { w, h });
+      if (onLoadedMetadata) onLoadedMetadata(w, h);
+      // Also mark load success when metadata arrives
+      handleLoadSuccess();
+    };
+
+  const handleErrorEvent = (ev?: Event) => {
+      if (!isMounted) return;
+      // Provide a simple message; detailed network errors come from HLS handlers
+      handleLoadError('Failed to load media element');
+    };
+
     const handleLoadError = (errorMsg: string) => {
       if (!isMounted) return; // Prevent calls after cleanup
       console.error('Video load error:', errorMsg);
@@ -132,7 +174,7 @@ export function VideoPlayer({
       case 'hls':
       case 'rtsp': {
         // For RTSP, we assume it's been converted to HLS format
-        if (Hls.isSupported()) {
+  if (Hls.isSupported()) {
           cleanupHls();
           hlsRef.current = new Hls({
             enableWorker: true,
@@ -144,6 +186,9 @@ export function VideoPlayer({
           hlsRef.current.attachMedia(video);
 
           hlsRef.current.on(Hls.Events.MANIFEST_PARSED, handleLoadSuccess);
+          // Always listen for metadata to obtain video dimensions
+          video.addEventListener('loadedmetadata', handleLoadedMetadataEvent);
+          video.addEventListener('error', handleErrorEvent);
           hlsRef.current.on(Hls.Events.ERROR, (event, data) => {
             if (data.fatal && data.type === Hls.ErrorTypes.NETWORK_ERROR) {
               handleLoadError(`HLS Network Error: ${data.details}`);
@@ -154,8 +199,8 @@ export function VideoPlayer({
         } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
           // Native HLS support (Safari)
           video.src = currentSrc;
-          video.addEventListener('loadedmetadata', handleLoadSuccess);
-          video.addEventListener('error', () => handleLoadError('Failed to load HLS stream'));
+          video.addEventListener('loadedmetadata', handleLoadedMetadataEvent);
+          video.addEventListener('error', handleErrorEvent);
         } else {
           handleLoadError('HLS not supported in this browser');
         }
@@ -185,8 +230,8 @@ export function VideoPlayer({
       case 'file': {
         // Regular video file
         video.src = currentSrc || '';
-        video.addEventListener('loadedmetadata', handleLoadSuccess);
-        video.addEventListener('error', () => handleLoadError('Failed to load video file'));
+        video.addEventListener('loadedmetadata', handleLoadedMetadataEvent);
+        video.addEventListener('error', handleErrorEvent);
         break;
       }
 
@@ -198,10 +243,10 @@ export function VideoPlayer({
       console.log('Cleaning up video player');
       isMounted = false; // Prevent further callbacks
       cleanupHls();
-      if (video) {
-        // Remove event listeners
-        video.removeEventListener('loadedmetadata', handleLoadSuccess);
-        video.removeEventListener('error', handleLoadError);
+  if (video) {
+  // Remove event listeners
+  video.removeEventListener('loadedmetadata', handleLoadedMetadataEvent);
+  video.removeEventListener('error', handleErrorEvent);
 
         // Clean up media streams
         if (video.srcObject) {
@@ -313,6 +358,7 @@ export function VideoPlayer({
         height={height}
         className="w-full h-full object-contain"
         autoPlay={autoPlay}
+        loop
         muted={isMuted}
         playsInline
         style={{ aspectRatio: `${width}/${height}` }}
@@ -402,4 +448,4 @@ export function VideoPlayer({
       )}
     </div>
   );
-}
+});
