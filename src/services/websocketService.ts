@@ -152,6 +152,7 @@ class WebSocketService {
       heartbeatInterval: config.heartbeatInterval || 30000,
       authRequired: config.authRequired ?? true
     };
+    this.log('WebSocket service initialized with baseUrl:', this.config.baseUrl);
   }
 
   /**
@@ -595,7 +596,7 @@ class WebSocketService {
 // Global WebSocket service instance
 export const websocketService = new WebSocketService({
   baseUrl: 'ws://localhost:8001',
-  authRequired: false // Disable auth for development
+  authRequired: false
 });
 
 export default websocketService;
