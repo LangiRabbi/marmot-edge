@@ -22,15 +22,16 @@ def test_performance():
             loop = asyncio.get_running_loop()
             processor = VideoProcessor(event_loop=loop)
 
-            result = ProcessingResult()
-            result.stream_id = "ws_7_stream"
-            result.timestamp = datetime.utcnow()
-            result.frame_number = 12345
-            result.person_count = 2
-            result.trackings = []
-            result.zone_analysis = {}
-            result.processing_time_ms = 23.5
-            result.fps_current = 13.8
+            result = ProcessingResult(
+                stream_id="ws_7_stream",
+                timestamp=datetime.utcnow(),
+                frame_number=12345,
+                person_count=2,
+                trackings=[],
+                zone_analysis={},
+                processing_time_ms=23.5,
+                fps_current=13.8
+            )
 
             processor._schedule_websocket_broadcast(result)
             await asyncio.sleep(0.1)

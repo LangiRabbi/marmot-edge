@@ -22,9 +22,10 @@ from ..services.yolo_service import get_yolo_tracking_service
 
 logger = logging.getLogger(__name__)
 
-# Global dictionary to track running processors
+# Global dictionary to track running processors and configurations
 _running_processors: Dict[str, threading.Thread] = {}
 _processor_stop_flags: Dict[str, bool] = {}
+_video_configurations: Dict[int, Dict] = {}  # Store video configs from frontend
 
 
 class FileVideoProcessor:
@@ -45,22 +46,31 @@ class FileVideoProcessor:
         logger.info(f"Starting video processing for workstation {self.workstation_id}")
         logger.info(f"Video file: {self.file_path}")
 
-        # Handle different file path scenarios
-        actual_file_path = self.file_path
+        # Check if frontend has provided video configuration
+        config = get_video_configuration(self.workstation_id)
+        if config and config.get("video_source"):
+            # Use video source from frontend configuration
+            actual_file_path = config["video_source"]
+            seek_time = config.get("current_time", 0.0)
+            logger.info(f"Using video source from frontend: {actual_file_path} (seek to {seek_time}s)")
+        else:
+            # Fallback to original logic
+            actual_file_path = self.file_path
 
-        # For blob URLs or non-existent files, use test video
-        if self.file_path.startswith("blob:") or not os.path.exists(self.file_path):
-            test_video_path = os.path.join(
-                os.path.dirname(__file__), "..", "..", "test_video.mp4"
-            )
-            if os.path.exists(test_video_path):
-                actual_file_path = test_video_path
-                logger.info(f"Using test video instead: {actual_file_path}")
-            else:
-                logger.error(
-                    f"No accessible video file found. Original: {self.file_path}"
+            # For blob URLs or non-existent files, use test video
+            if self.file_path.startswith("blob:") or not os.path.exists(self.file_path):
+                test_video_path = os.path.join(
+                    os.path.dirname(__file__), "..", "..", "test_video.mp4"
                 )
-                return
+                if os.path.exists(test_video_path):
+                    actual_file_path = test_video_path
+                    logger.info(f"Using test video instead: {actual_file_path}")
+                else:
+                    logger.error(
+                        f"No accessible video file found. Original: {self.file_path}"
+                    )
+                    return
+            seek_time = 0.0
 
         logger.info(f"Processing video file: {actual_file_path}")
 
@@ -85,7 +95,13 @@ class FileVideoProcessor:
             # Calculate frame delay to maintain original FPS
             frame_delay = 1.0 / fps if fps > 0 else 1.0 / 30.0  # Default to 30 FPS
 
-            frame_number = 0
+            # Seek to frontend's current position if provided
+            if seek_time > 0:
+                cap.set(cv2.CAP_PROP_POS_MSEC, seek_time * 1000)
+                frame_number = int(seek_time * fps) if fps > 0 else 0
+                logger.info(f"Seeked to {seek_time}s (frame {frame_number})")
+            else:
+                frame_number = 0
             while cap.isOpened():
                 # Check stop flag
                 if _processor_stop_flags.get(self.workstation_id, False):
@@ -294,3 +310,34 @@ def stop_all_processing():
     _processor_stop_flags.clear()
 
     logger.info("All video processors stopped")
+
+
+def update_video_source(workstation_id: int, video_source: str, current_time: float = None):
+    """
+    Update video source configuration for a workstation.
+    This is called by the API endpoint when frontend informs backend about video source.
+    """
+    global _video_configurations
+
+    logger.info(
+        f"Updating video source for workstation {workstation_id}: "
+        f"source={video_source}, current_time={current_time}"
+    )
+
+    _video_configurations[workstation_id] = {
+        "video_source": video_source,
+        "current_time": current_time or 0.0,
+        "timestamp": datetime.utcnow()
+    }
+
+    # If processor is already running, restart it with new source
+    if workstation_id in _running_processors:
+        logger.info(f"Restarting processor for workstation {workstation_id} with new source")
+        stop_video_processing(workstation_id)
+        # start_video_processing will pick up the new configuration
+        start_video_processing(workstation_id, video_source)
+
+
+def get_video_configuration(workstation_id: int) -> Dict:
+    """Get current video configuration for a workstation"""
+    return _video_configurations.get(workstation_id, {})

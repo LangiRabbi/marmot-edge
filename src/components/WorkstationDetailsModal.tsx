@@ -25,6 +25,7 @@ import type { CanvasZone, ZoneStatus } from "@/types";
 import { useWorkstationWebSocket } from "@/hooks/useWebSocket";
 import { useDetectionData } from "@/hooks/useDetectionData";
 import type { DetectionUpdateMessage, ZoneUpdateMessage, EfficiencyUpdateMessage } from "@/services/websocketService";
+import { videoStreamService } from "@/services/videoStreamService";
 
 interface WorkstationDetailsModalProps {
   open: boolean;
@@ -131,8 +132,39 @@ export function WorkstationDetailsModal({ open, onOpenChange, workstation, video
     } else {
       // Connect WebSocket when modal opens
       wsConnect(workstation.id.toString());
+
+      // Configure video source synchronization
+      const configureVideoSource = async () => {
+        try {
+          const videoSource = getVideoSource();
+
+          if (videoSource.src && videoConfig) {
+            // Determine video type
+            let videoType: 'file' | 'rtsp' | 'usb' = 'file';
+            if (videoConfig.type === 'rtsp') {
+              videoType = 'rtsp';
+            } else if (videoConfig.type === 'usb') {
+              videoType = 'usb';
+            }
+
+            // Send configuration to backend
+            await videoStreamService.configureVideoSource(
+              workstation.id,
+              videoSource.src,
+              videoType,
+              0 // Start from beginning
+            );
+
+            console.log(`🎬 [WorkstationDetailsModal] Video source configured for workstation ${workstation.id}`);
+          }
+        } catch (error) {
+          console.warn('Failed to configure video source:', error);
+        }
+      };
+
+      configureVideoSource();
     }
-  }, [open, workstation.id, wsConnect]);
+  }, [open, workstation.id, wsConnect, videoConfig]);
 
   // Handle real-time detection updates
   useEffect(() => {

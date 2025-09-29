@@ -517,7 +517,12 @@ class VideoProcessor:
             # Prepare detection data
             bounding_boxes = {
                 "boxes": [
-                    [float(t["bbox"][0]), float(t["bbox"][1]), float(t["bbox"][2]), float(t["bbox"][3])]
+                    [
+                        float(t["bbox"].get("x1", 0) if isinstance(t["bbox"], dict) else t["bbox"][0]),
+                        float(t["bbox"].get("y1", 0) if isinstance(t["bbox"], dict) else t["bbox"][1]),
+                        float(t["bbox"].get("x2", 0) if isinstance(t["bbox"], dict) else t["bbox"][2]),
+                        float(t["bbox"].get("y2", 0) if isinstance(t["bbox"], dict) else t["bbox"][3])
+                    ]
                     for t in result.trackings if "bbox" in t
                 ]
             }
@@ -608,13 +613,23 @@ class VideoProcessor:
                     and tracking["track_id"] is not None
                 ):
                     bbox = tracking["bbox"]
-                    center_x = (bbox[0] + bbox[2]) / 2
-                    center_y = (bbox[1] + bbox[3]) / 2
+                    # Handle bbox as dictionary (from YOLO service)
+                    if isinstance(bbox, dict):
+                        x1 = bbox.get("x1", 0)
+                        y1 = bbox.get("y1", 0)
+                        x2 = bbox.get("x2", 0)
+                        y2 = bbox.get("y2", 0)
+                    else:
+                        # Handle bbox as list (legacy)
+                        x1, y1, x2, y2 = bbox[0], bbox[1], bbox[2], bbox[3]
+
+                    center_x = (x1 + x2) / 2
+                    center_y = (y1 + y2) / 2
 
                     person = PersonDetection(
                         tracking_id=tracking["track_id"],
                         confidence=tracking.get("confidence", 0.0),
-                        bbox=[float(bbox[0]), float(bbox[1]), float(bbox[2]), float(bbox[3])],
+                        bbox=[float(x1), float(y1), float(x2), float(y2)],
                         center=[float(center_x), float(center_y)],
                         zones=[]  # TODO: Add zone detection from result.zone_analysis
                     )
@@ -725,10 +740,15 @@ class VideoProcessor:
                     and tracking["track_id"] is not None
                 ):
                     bbox = tracking["bbox"]
+                    # Handle bbox as dictionary or list
+                    if isinstance(bbox, dict):
+                        x1, y1, x2, y2 = bbox["x1"], bbox["y1"], bbox["x2"], bbox["y2"]
+                    else:
+                        x1, y1, x2, y2 = bbox[0], bbox[1], bbox[2], bbox[3]
 
                     # Calculate center point
-                    center_x = (bbox[0] + bbox[2]) / 2
-                    center_y = (bbox[1] + bbox[3]) / 2
+                    center_x = (x1 + x2) / 2
+                    center_y = (y1 + y2) / 2
 
                     # Find zones this person is in
                     person_zones = []
@@ -741,10 +761,10 @@ class VideoProcessor:
                         tracking_id=tracking["track_id"],
                         confidence=tracking.get("confidence", 0.0),
                         bbox=[
-                            float(bbox[0]),
-                            float(bbox[1]),
-                            float(bbox[2]),
-                            float(bbox[3]),
+                            float(x1),
+                            float(y1),
+                            float(x2),
+                            float(y2),
                         ],
                         center=[float(center_x), float(center_y)],
                         zones=person_zones,

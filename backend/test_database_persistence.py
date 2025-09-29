@@ -24,17 +24,17 @@ def test_database_persistence():
             loop = asyncio.get_running_loop()
             processor = VideoProcessor(event_loop=loop)
 
-            # schedule a mock persistence call using the real ProcessingResult type
-            mock = ProcessingResult()
-            # Set attributes manually since ProcessingResult doesn't use constructor
-            mock.stream_id = "ws_7_stream"
-            mock.timestamp = datetime.utcnow()
-            mock.frame_number = 1
-            mock.person_count = 1
-            mock.trackings = []
-            mock.zone_analysis = {}
-            mock.processing_time_ms = 23.5
-            mock.fps_current = 13.8
+            # Create a ProcessingResult with all required arguments
+            mock = ProcessingResult(
+                stream_id="ws_7_stream",
+                timestamp=datetime.utcnow(),
+                frame_number=1,
+                person_count=1,
+                trackings=[],
+                zone_analysis={},
+                processing_time_ms=23.5,
+                fps_current=13.8
+            )
 
 
             processor._schedule_database_persistence(mock)

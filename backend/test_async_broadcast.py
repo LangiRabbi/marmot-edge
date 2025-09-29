@@ -12,32 +12,28 @@ from typing import List, Dict, Any
 # Add the app directory to Python path
 sys.path.append(".")
 
-# Import the real ProcessingResult class
-from app.workers.video_processor import ProcessingResult
-
 def test_websocket_broadcast():
     import asyncio
 
     async def _inner():
         try:
-            from app.workers.video_processor import VideoProcessor
+            from app.workers.video_processor import VideoProcessor, ProcessingResult
 
             # Create VideoProcessor with current event loop
             loop = asyncio.get_running_loop()
             video_processor = VideoProcessor(event_loop=loop)
 
-            # Create mock detection data
-            mock_result = ProcessingResult()  # Create instance
-            # Set attributes directly
-            mock_result.stream_id = "ws_7_stream"
-            mock_result.timestamp = datetime.utcnow()
-            mock_result.frame_number = 12345
-            mock_result.person_count = 2
-            mock_result.trackings = []
-            mock_result.zone_analysis = {}
-            mock_result.processing_time_ms = 23.5
-            mock_result.fps_current = 13.8
-
+            # Create mock detection data using the actual ProcessingResult class
+            mock_result = ProcessingResult(
+                stream_id="ws_7_stream",
+                timestamp=datetime.utcnow(),
+                frame_number=12345,
+                person_count=2,
+                trackings=[],
+                zone_analysis={},
+                processing_time_ms=23.5,
+                fps_current=13.8,
+            )
 
             # Run schedule call
             video_processor._schedule_websocket_broadcast(mock_result)

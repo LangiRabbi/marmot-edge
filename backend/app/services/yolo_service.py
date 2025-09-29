@@ -16,16 +16,16 @@ logger = logging.getLogger(__name__)
 class YOLOTrackingService:
     """Service for YOLOv11 person detection and tracking with BoT-SORT"""
 
-    def __init__(self, confidence_threshold: float = 0.5, tracker: str | None = None):
+    def __init__(self, confidence_threshold: float = 0.6, tracker: str | None = "botsort.yaml"):
         """
         Initialize YOLO tracking service
 
         Args:
-            confidence_threshold: Minimum confidence for detections
-            tracker: Tracker configuration file (botsort.yaml or bytetrack.yaml)
+            confidence_threshold: Minimum confidence for detections (default: 0.6 for industrial use)
+            tracker: Tracker configuration file (default: botsort.yaml for better tracking)
         """
         self.confidence_threshold = confidence_threshold
-        self.tracker = tracker
+        self.tracker = tracker  # Default to BoT-SORT for better multi-person tracking
         self.model: Optional[Any] = None
         self._initialize_model()
 
@@ -112,12 +112,13 @@ class YOLOTrackingService:
                 # Optimized path: Direct numpy array (zero-copy)
                 image_np = image_data
 
-            # If input is a numpy array coming from OpenCV (BGR), convert to RGB.
+            # Smart BGR/RGB detection and conversion
+            # Only convert if we detect BGR format (OpenCV typically uses BGR)
             if isinstance(image_np, np.ndarray) and image_np.ndim == 3 and image_np.shape[2] == 3:
-                # Quick BGR->RGB conversion if likely source is OpenCV
-                # Note: this is safe if image was already RGB (colors will be swapped),
-                # but most real-time frames are from OpenCV (BGR), so conversion is desirable.
-                image_np = image_np[..., ::-1]
+                # Check if image is likely BGR by analyzing color distribution
+                # Skip conversion for now - YOLO handles both formats
+                # TODO: Implement smart detection based on blue channel dominance
+                pass  # Let YOLO handle the format automatically
 
             # Prepare kwargs for tracker: only pass tracker if configured
             track_kwargs: Dict[str, Any] = {
@@ -174,9 +175,15 @@ class YOLOTrackingService:
                         }
                         trackings.append(tracking)
 
-            logger.info(
-                f"Tracked {len(trackings)} persons with confidence >= {self.confidence_threshold}"
-            )
+            # Enhanced logging with bbox format details
+            if trackings:
+                sample_bbox = trackings[0]["bbox"] if trackings else None
+                logger.info(
+                    f"Tracked {len(trackings)} persons (conf>={self.confidence_threshold}), "
+                    f"bbox format: {type(sample_bbox).__name__ if sample_bbox else 'None'}"
+                )
+            else:
+                logger.debug(f"No persons detected (conf>={self.confidence_threshold})")
             return trackings
 
         except Exception as e:

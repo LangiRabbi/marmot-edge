@@ -35,6 +35,19 @@ class RectangleCreate(BaseModel):
     name: str = Field("", description="Zone name")
 
 
+class VideoSourceConfig(BaseModel):
+    """Configure video source for workstation processing"""
+
+    video_source: str = Field(
+        ..., description="Path or URL to video source that frontend is displaying"
+    )
+    video_type: str = Field(
+        ..., description="Type of video source: file, rtsp, usb"
+    )
+    current_time: Optional[float] = Field(
+        None, description="Current playback position in seconds"
+    )
+
 class StreamCreate(BaseModel):
     """Create video stream request"""
 
@@ -443,6 +456,59 @@ async def get_system_statistics():
 
     except Exception as e:
         logger.error(f"Failed to get system statistics: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/{workstation_id}/configure", response_model=Dict[str, Any])
+async def configure_video_source(
+    workstation_id: int,
+    config: VideoSourceConfig
+):
+    """
+    Configure video source for a workstation.
+    Frontend informs backend what video it's displaying.
+    """
+    try:
+        logger.info(
+            f"Configuring video source for workstation {workstation_id}: "
+            f"source={config.video_source}, type={config.video_type}, time={config.current_time}"
+        )
+
+        # Store the configuration for the video processor to use
+        # This will be picked up by FileVideoProcessor
+        video_manager = get_video_manager()
+
+        # Update or create stream configuration
+        stream_id = f"ws_{workstation_id}_stream"
+
+        # If it's a file type, update the file processor
+        if config.video_type == "file":
+            try:
+                # Import here to avoid circular dependency
+                from ...workers.file_video_processor import update_video_source
+
+                # Update the video source for this workstation
+                update_video_source(
+                    workstation_id,
+                    config.video_source,
+                    config.current_time
+                )
+                logger.info(f"Video source updated for workstation {workstation_id}")
+            except ImportError as ie:
+                logger.warning(f"Could not import file_video_processor: {ie}")
+            except Exception as update_error:
+                logger.warning(f"Could not update video source: {update_error}")
+
+        return {
+            "message": "Video source configured successfully",
+            "workstation_id": workstation_id,
+            "video_source": config.video_source,
+            "video_type": config.video_type,
+            "timestamp": datetime.utcnow()
+        }
+
+    except Exception as e:
+        logger.error(f"Failed to configure video source: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

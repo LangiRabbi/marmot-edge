@@ -7,9 +7,11 @@ subscribe it to workstation '7', broadcast a detection message and verify delive
 import asyncio
 import sys
 from datetime import datetime
+from typing import Any, Dict, Optional
 
 sys.path.append(".")
 
+from fastapi import WebSocket
 from app.services.websocket_manager import websocket_manager, ConnectionInfo
 from app.schemas.websocket_messages import (
     DetectionUpdateMessage,
@@ -20,12 +22,22 @@ from app.schemas.websocket_messages import (
 
 
 class FakeWebSocket:
+    """Mock WebSocket that captures sent messages"""
     def __init__(self):
         self.sent = []
+        self.client_state = {"type": "websocket"}  # Mock client state
 
     async def send_text(self, text: str):
         print("FakeWebSocket: send_text called")
         self.sent.append(text)
+
+    async def accept(self, subprotocol: Optional[str] = None) -> None:
+        """Mock accept method"""
+        pass
+
+    async def close(self, code: int = 1000, reason: Optional[str] = None) -> None:
+        """Mock close method"""
+        pass
 
 
 def test_subscriber_receive():
@@ -35,8 +47,8 @@ def test_subscriber_receive():
             fake_ws = FakeWebSocket()
             connection_id = "test-conn-1"
 
-            # Create ConnectionInfo and register it
-            conn_info = ConnectionInfo(fake_ws, connection_id, user=None)
+            # Create ConnectionInfo and register it (type: ignore for mock object)
+            conn_info = ConnectionInfo(fake_ws, connection_id, user=None)  # type: ignore
             websocket_manager.connections[connection_id] = conn_info
 
             # Subscribe the fake connection to workstation '7' detections
