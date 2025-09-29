@@ -3,6 +3,7 @@ import Hls from 'hls.js';
 import { Button } from '@/components/ui/button';
 import { Play, Pause, Volume2, VolumeX, Maximize } from 'lucide-react';
 import { VideoCanvasOverlay, Zone } from './VideoCanvasOverlay';
+import type { Detection } from '@/types/detection';
 
 interface VideoPlayerProps {
   src?: string;
@@ -15,6 +16,7 @@ interface VideoPlayerProps {
   className?: string;
   onLoadError?: (error: string) => void;
   onLoadSuccess?: () => void;
+  onVideoReady?: (video: HTMLVideoElement) => void; // Callback when video element is ready
   // Zone management props
   zones?: Zone[];
   onZonesChange?: (zones: Zone[]) => void;
@@ -23,6 +25,10 @@ interface VideoPlayerProps {
   onDrawingModeChange?: (mode: boolean) => void;
   maxZones?: number;
   isEditMode?: boolean;
+  // Detection props
+  detections?: Detection[];
+  showDetections?: boolean;
+  frameDimensions?: { width: number; height: number } | null; // Original frame dimensions for coordinate scaling
 }
 
 export function VideoPlayer({
@@ -36,6 +42,7 @@ export function VideoPlayer({
   className = "",
   onLoadError,
   onLoadSuccess,
+  onVideoReady,
   // Zone management props
   zones = [],
   onZonesChange,
@@ -43,7 +50,11 @@ export function VideoPlayer({
   isDrawingMode = false,
   onDrawingModeChange,
   maxZones = 10,
-  isEditMode = false
+  isEditMode = false,
+  // Detection props
+  detections = [],
+  showDetections = true,
+  frameDimensions = null
 }: VideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<Hls | null>(null);
@@ -76,6 +87,13 @@ export function VideoPlayer({
     setUsingFallback(false);
     setError(null);
   }, [src]);
+
+  // Notify parent component when video element is ready
+  useEffect(() => {
+    if (videoRef.current && onVideoReady) {
+      onVideoReady(videoRef.current);
+    }
+  }, [onVideoReady]);
 
   // Initialize video source based on type
   useEffect(() => {
@@ -331,7 +349,10 @@ export function VideoPlayer({
           isDrawingMode={isDrawingMode}
           onDrawingModeChange={onDrawingModeChange || (() => {})}
           maxZones={maxZones}
+          detections={detections}
+          showDetections={showDetections}
           isEditMode={isEditMode}
+          frameDimensions={frameDimensions}
         />
       )}
 

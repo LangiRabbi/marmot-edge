@@ -132,6 +132,15 @@ class ZoneAnalyzer:
         try:
             x, y = point
 
+            # Parse JSON if coordinates is a string
+            if isinstance(zone_coordinates, str):
+                import json
+                try:
+                    zone_coordinates = json.loads(zone_coordinates)
+                except json.JSONDecodeError:
+                    logger.warning(f"Failed to parse zone coordinates JSON: {zone_coordinates}")
+                    return False
+
             # New rectangle format (preferred)
             if all(
                 key in zone_coordinates for key in ["x_min", "y_min", "x_max", "y_max"]
@@ -154,8 +163,15 @@ class ZoneAnalyzer:
 
                 return x_min <= x <= x_max and y_min <= y <= y_max
 
+            # Frontend percentage format (from VideoCanvasOverlay)
+            elif all(key in zone_coordinates for key in ["x", "y", "width", "height"]):
+                # These are percentages 0-100, need to be converted to pixel coords
+                # But for now, just log a warning and return False
+                logger.warning(f"Zone coordinates in percentage format, needs conversion: {zone_coordinates}")
+                return False
+
             else:
-                logger.warning("Invalid zone coordinates format")
+                logger.warning(f"Invalid zone coordinates format: {zone_coordinates}")
                 return False
 
         except Exception as e:

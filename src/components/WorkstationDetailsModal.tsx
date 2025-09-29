@@ -17,9 +17,12 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { VideoPlayer } from "./VideoPlayer";
 import { Zone } from "./VideoCanvasOverlay";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import type { VideoSourceConfig } from "@/services/workstationService";
 import { zoneService, type CanvasZone } from "@/services/zoneService";
+import { FrameCaptureService } from "@/services/frameCaptureService";
+import { detectionService } from "@/services/detectionService";
+import type { Detection } from "@/types/detection";
 
 interface WorkstationDetailsModalProps {
   open: boolean;
@@ -45,6 +48,15 @@ export function WorkstationDetailsModal({ open, onOpenChange, workstation, video
   const [isDrawingMode, setIsDrawingMode] = useState(false);
   const [isLoadingZones, setIsLoadingZones] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
+
+  // Detection state
+  const [detections, setDetections] = useState<Detection[]>([]);
+  const [showDetections, setShowDetections] = useState(true);
+  const [isDetecting, setIsDetecting] = useState(false);
+  const [videoElement, setVideoElement] = useState<HTMLVideoElement | null>(null);
+  const [frameDimensions, setFrameDimensions] = useState<{ width: number; height: number } | null>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const frameCaptureRef = useRef<FrameCaptureService | null>(null);
 
   // Reset state when modal opens/closes
   useEffect(() => {
@@ -87,6 +99,101 @@ export function WorkstationDetailsModal({ open, onOpenChange, workstation, video
       loadZones();
     }
   }, [open, workstation.id, toast]);
+
+  // Initialize and manage YOLO detection
+  useEffect(() => {
+    if (!open || !videoElement) {
+      // Cleanup when modal closes
+      if (frameCaptureRef.current) {
+        frameCaptureRef.current.stopCapture();
+        frameCaptureRef.current.dispose();
+        frameCaptureRef.current = null;
+      }
+      setDetections([]);
+      setIsDetecting(false);
+      return;
+    }
+
+    console.log('🎬 Starting detection with video element:', videoElement);
+
+    // Check if requestVideoFrameCallback is supported
+    if (!FrameCaptureService.isSupported()) {
+      console.warn('requestVideoFrameCallback not supported, detection disabled');
+      return;
+    }
+
+    // Wait for video to be ready
+    const video = videoElement;
+    const startDetection = async () => {
+      try {
+        // Initialize frame capture service
+        const frameCapture = new FrameCaptureService({
+          targetFPS: 1, // 1 frame per second for detection
+          quality: 0.85,
+          maxWidth: 1280,
+          maxHeight: 720,
+        });
+
+        frameCapture.initialize(video);
+        frameCaptureRef.current = frameCapture;
+
+        setIsDetecting(true);
+
+        // Start frame capture and detection loop
+        await frameCapture.startCapture(async (capturedFrame) => {
+          try {
+            // Send frame to backend for YOLO detection
+            const result = await detectionService.detectPersons({
+              workstation_id: workstation.id,
+              frame: capturedFrame.blob,
+              confidence_threshold: 0.5,
+              persist_tracking: true,
+              frame_width: capturedFrame.metadata.width,
+              frame_height: capturedFrame.metadata.height,
+            });
+
+            // Update detections state with frame dimensions for coordinate scaling
+            setDetections(result.trackings);
+            setFrameDimensions({
+              width: result.frame_width || capturedFrame.metadata.width,
+              height: result.frame_height || capturedFrame.metadata.height,
+            });
+
+            console.log(`Detection: ${result.person_count} persons, ${result.processing_time_ms.toFixed(0)}ms`);
+          } catch (error) {
+            console.error('Detection error:', error);
+          }
+        });
+      } catch (error) {
+        console.error('Failed to start detection:', error);
+        setIsDetecting(false);
+      }
+    };
+
+    // Wait for video to load
+    if (video.readyState >= 2) {
+      // Video is ready
+      startDetection();
+    } else {
+      // Wait for video to be ready
+      const handleLoadedData = () => {
+        startDetection();
+      };
+      video.addEventListener('loadeddata', handleLoadedData);
+      return () => {
+        video.removeEventListener('loadeddata', handleLoadedData);
+      };
+    }
+
+    // Cleanup on unmount
+    return () => {
+      if (frameCaptureRef.current) {
+        frameCaptureRef.current.stopCapture();
+        frameCaptureRef.current.dispose();
+        frameCaptureRef.current = null;
+      }
+    };
+  }, [open, workstation.id, videoElement]); // Add videoElement dependency!
 
   // Get video source URL and type based on config
   const getVideoSource = () => {
@@ -483,6 +590,11 @@ export function WorkstationDetailsModal({ open, onOpenChange, workstation, video
                   autoPlay={true}
                   controls={true}
                   className="w-full"
+                  onVideoReady={(video) => {
+                    console.log('📹 Video element ready:', video);
+                    videoRef.current = video;
+                    setVideoElement(video); // Trigger detection useEffect
+                  }}
                   // Zone management props
                   zones={zones}
                   onZonesChange={handleZonesChange}
@@ -491,6 +603,10 @@ export function WorkstationDetailsModal({ open, onOpenChange, workstation, video
                   onDrawingModeChange={setIsDrawingMode}
                   maxZones={10}
                   isEditMode={isEditMode}
+                  // Detection props
+                  detections={detections}
+                  showDetections={showDetections}
+                  frameDimensions={frameDimensions}
                   onLoadSuccess={() => {
                     toast({
                       title: "Camera Connected",

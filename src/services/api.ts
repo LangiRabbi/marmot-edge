@@ -16,6 +16,24 @@ apiClient.interceptors.request.use(
     if (import.meta.env.VITE_DEBUG) {
       console.log('API Request:', config.method?.toUpperCase(), config.url);
     }
+
+    // Handle FormData - remove Content-Type to let browser set it with boundary
+    if (config.data instanceof FormData) {
+      console.log('📦 FormData Request:', config.url);
+      // Delete Content-Type header to let browser set multipart/form-data with boundary
+      delete config.headers['Content-Type'];
+      console.log('  - Content-Type: (auto - browser will set with boundary)');
+      console.log('  - Data type:', config.data.constructor.name);
+      // Log FormData entries
+      for (const [key, value] of config.data.entries()) {
+        if (value instanceof Blob) {
+          console.log(`  - ${key}: Blob (${value.size} bytes, type: ${value.type})`);
+        } else {
+          console.log(`  - ${key}: ${value}`);
+        }
+      }
+    }
+
     return config;
   },
   (error) => {

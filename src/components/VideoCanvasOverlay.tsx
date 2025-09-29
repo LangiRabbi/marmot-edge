@@ -9,6 +9,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
+import type { Detection } from '@/types/detection';
 
 export interface Zone {
   id: number;
@@ -30,6 +31,9 @@ interface VideoCanvasOverlayProps {
   onDrawingModeChange: (mode: boolean) => void;
   maxZones?: number;
   isEditMode?: boolean;
+  detections?: Detection[]; // YOLO detection results
+  showDetections?: boolean; // Toggle detection visualization
+  frameDimensions?: { width: number; height: number } | null; // Original frame dimensions for coordinate scaling
 }
 
 interface DrawingState {
@@ -74,7 +78,10 @@ export function VideoCanvasOverlay({
   isDrawingMode,
   onDrawingModeChange,
   maxZones = 10,
-  isEditMode = false
+  isEditMode = false,
+  detections = [],
+  showDetections = true,
+  frameDimensions = null
 }: VideoCanvasOverlayProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -233,6 +240,59 @@ export function VideoCanvasOverlay({
       }
     });
 
+    // Draw YOLO detection bounding boxes
+    if (showDetections && detections.length > 0) {
+      detections.forEach((detection) => {
+        const { bbox, confidence, track_id } = detection;
+
+        // Calculate scaling factors for coordinate transformation
+        // YOLO returns coords in original captured frame dimensions
+        // We need to scale them to canvas display dimensions
+        const scaleX = frameDimensions ? (width / frameDimensions.width) : 1;
+        const scaleY = frameDimensions ? (height / frameDimensions.height) : 1;
+
+        // Transform YOLO coordinates from frame space to canvas space
+        const x = bbox.x1 * scaleX;
+        const y = bbox.y1 * scaleY;
+        const boxWidth = (bbox.x2 - bbox.x1) * scaleX;
+        const boxHeight = (bbox.y2 - bbox.y1) * scaleY;
+
+        // Draw bounding box
+        ctx.strokeStyle = '#00FF00'; // Green for person detection
+        ctx.lineWidth = 3;
+        ctx.setLineDash([]);
+        ctx.strokeRect(x, y, boxWidth, boxHeight);
+
+        // Draw semi-transparent fill
+        ctx.fillStyle = 'rgba(0, 255, 0, 0.1)';
+        ctx.fillRect(x, y, boxWidth, boxHeight);
+
+        // Draw label with tracking ID and confidence
+        const label = track_id !== null
+          ? `Person #${track_id} (${(confidence * 100).toFixed(0)}%)`
+          : `Person (${(confidence * 100).toFixed(0)}%)`;
+
+        ctx.font = 'bold 14px Arial';
+        const labelMetrics = ctx.measureText(label);
+        const labelHeight = 20;
+        const labelPadding = 4;
+
+        // Label background (above bounding box)
+        const labelY = y > labelHeight + 5 ? y - labelHeight - 5 : y + boxHeight + 5;
+        ctx.fillStyle = 'rgba(0, 255, 0, 0.9)';
+        ctx.fillRect(
+          x,
+          labelY,
+          labelMetrics.width + labelPadding * 2,
+          labelHeight
+        );
+
+        // Label text
+        ctx.fillStyle = '#000000';
+        ctx.fillText(label, x + labelPadding, labelY + 15);
+      });
+    }
+
     // Draw current drawing rectangle
     if (isDrawingMode && drawingState.isDrawing) {
       const startX = Math.min(drawingState.startX, drawingState.currentX);
@@ -249,7 +309,7 @@ export function VideoCanvasOverlay({
       ctx.fillStyle = '#3B82F640';
       ctx.fillRect(startX, startY, rectWidth, rectHeight);
     }
-  }, [width, height, zones, selectedZone, isDrawingMode, drawingState, percentToPixel, isEditMode]);
+  }, [width, height, zones, selectedZone, isDrawingMode, drawingState, percentToPixel, isEditMode, detections, showDetections]);
 
   // Mouse event handlers
   const handleMouseDown = useCallback((e: React.MouseEvent) => {

@@ -5,12 +5,13 @@ YOLOv11 person detection and tracking service with BoT-SORT
 import io
 import logging
 import os
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, Generator, List, Optional, Tuple
 
 import cv2
 import numpy as np
 from PIL import Image
 from ultralytics import YOLO
+from ultralytics.engine.results import Results
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +31,7 @@ class YOLOTrackingService:
         """
         self.confidence_threshold = confidence_threshold
         self.tracker = tracker
-        self.model = None
+        self.model: Optional[YOLO] = None
         self._initialize_model()
 
     def _initialize_model(self):
@@ -69,6 +70,10 @@ class YOLOTrackingService:
 
             # Convert PIL to numpy for YOLO tracking
             image_np = np.array(image)
+
+            # Check if model is initialized
+            if self.model is None:
+                raise RuntimeError("YOLO model not initialized")
 
             # Run tracking with BoT-SORT
             results = self.model.track(
@@ -136,7 +141,9 @@ class YOLOTrackingService:
             logger.error(f"Failed to track persons from file {image_path}: {e}")
             raise
 
-    def track_video_stream(self, video_source: str, persist: bool = True) -> None:
+    def track_video_stream(
+        self, video_source: str, persist: bool = True
+    ) -> Generator[List[Dict[str, Any]], None, None]:
         """
         Track persons in video stream (for real-time monitoring)
 
@@ -145,6 +152,10 @@ class YOLOTrackingService:
             persist: Maintain track IDs across frames
         """
         try:
+            # Check if model is initialized
+            if self.model is None:
+                raise RuntimeError("YOLO model not initialized")
+
             # This will be used for real-time video processing
             # Returns generator of tracking results per frame
             results = self.model.track(

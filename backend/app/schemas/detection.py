@@ -55,6 +55,8 @@ class DetectionResponse(BaseModel):
     trackings: List[Dict[str, Any]]  # Raw tracking results
     zone_analysis: Dict[str, Any]  # Zone analysis results
     processing_time_ms: float
+    frame_width: Optional[int] = None  # Original captured frame width for coordinate scaling
+    frame_height: Optional[int] = None  # Original captured frame height for coordinate scaling
 
 
 class EfficiencyData(BaseModel):

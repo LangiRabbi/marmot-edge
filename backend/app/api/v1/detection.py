@@ -6,7 +6,7 @@ import time
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, UploadFile
 from sqlalchemy.orm import Session
 
 from app.crud.workstation import get_workstations
@@ -22,10 +22,12 @@ router = APIRouter()
 
 @router.post("/detect/image", response_model=DetectionResponse)
 async def detect_persons_in_image(
-    workstation_id: int,
     file: UploadFile = File(...),
-    confidence_threshold: float = 0.5,
-    persist_tracking: bool = True,
+    workstation_id: int = Form(...),
+    confidence_threshold: float = Form(0.5),
+    persist_tracking: bool = Form(True),
+    frame_width: Optional[int] = Form(None),
+    frame_height: Optional[int] = Form(None),
     db: Session = Depends(get_db),
     yolo_service: YOLOTrackingService = Depends(get_yolo_tracking_service),
     zone_analyzer: ZoneAnalyzer = Depends(get_zone_analyzer),
@@ -42,6 +44,13 @@ async def detect_persons_in_image(
     Returns:
         Detection results with tracking and zone analysis
     """
+    print(f"🔍 Detection endpoint called:")
+    print(f"  - file: {file.filename}, content_type: {file.content_type}, size: {file.size}")
+    print(f"  - workstation_id: {workstation_id} (type: {type(workstation_id)})")
+    print(f"  - confidence_threshold: {confidence_threshold} (type: {type(confidence_threshold)})")
+    print(f"  - persist_tracking: {persist_tracking} (type: {type(persist_tracking)})")
+    print(f"  - frame_width: {frame_width}, frame_height: {frame_height}")
+
     try:
         start_time = time.time()
 
@@ -60,7 +69,7 @@ async def detect_persons_in_image(
         trackings = yolo_service.track_persons(image_data, persist=persist_tracking)
 
         # Get zones for this workstation
-        zones = get_zones_by_workstation(db, workstation_id)
+        zones = await get_zones_by_workstation(db, workstation_id)
         zone_data = [
             {
                 "id": zone.id,
@@ -101,8 +110,8 @@ async def detect_persons_in_image(
 
         # Save to database
         db.add(detection_data)
-        db.commit()
-        db.refresh(detection_data)
+        await db.commit()
+        await db.refresh(detection_data)
 
         # Update tracking sessions
         await _update_tracking_sessions(db, trackings, workstation_id, zone_analysis)
@@ -115,6 +124,8 @@ async def detect_persons_in_image(
             trackings=trackings,
             zone_analysis=zone_analysis,
             processing_time_ms=processing_time,
+            frame_width=frame_width,
+            frame_height=frame_height,
         )
 
     except Exception as e:
@@ -289,9 +300,9 @@ async def _update_tracking_sessions(
                     session.current_zone_id = zone_id
                     break
 
-        db.commit()
+        await db.commit()
 
     except Exception as e:
         # Log error but don't fail the main detection
         print(f"Error updating tracking sessions: {e}")
-        db.rollback()
+        await db.rollback()
