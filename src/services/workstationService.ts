@@ -2,7 +2,7 @@ import { apiClient } from './api';
 import { videoStreamService } from './videoStreamService';
 
 export interface VideoSourceConfig {
-  type: 'rtsp' | 'usb' | 'file';
+  type: 'rtsp' | 'usb' | 'file' | 'ip';
   url?: string;
   usbDeviceId?: string;
   fileName?: string;
@@ -100,15 +100,26 @@ interface BackendWorkstation {
   name: string;
   description?: string;
   current_status: string;
-  video_source_config?: Record<string, unknown>;
-  [key: string]: unknown;
+  video_config?: VideoSourceConfig;
+  created_at: string;
+  updated_at: string;
+  last_detection_at?: string;
+  zones?: BackendZone[];
 }
 
 interface BackendZone {
   id: number;
+  name: string;
   person_count?: number;
-  status?: string;
-  [key: string]: unknown;
+  status?: 'work' | 'idle' | 'other';
+  coordinates?: {
+    x?: number;
+    y?: number;
+    width?: number;
+    height?: number;
+  };
+  color?: string;
+  is_active?: boolean;
 }
 
 let mockWorkstations = getMockWorkstations();
@@ -134,7 +145,7 @@ class WorkstationService {
           last_activity: backendWorkstation.last_detection_at || 'No recent activity',
           created_at: backendWorkstation.created_at,
           updated_at: backendWorkstation.updated_at,
-          video_config: backendWorkstation.video_config
+          video_config: backendWorkstation.video_config || { type: 'file' }
         };
       });
 
@@ -191,7 +202,7 @@ class WorkstationService {
         last_activity: backendWorkstation.last_detection_at || 'No recent activity',
         created_at: backendWorkstation.created_at,
         updated_at: backendWorkstation.updated_at,
-        video_config: backendWorkstation.video_config
+        video_config: backendWorkstation.video_config || { type: 'file' }
       };
     } catch (error) {
       console.warn('Backend not available, using mock data:', error);

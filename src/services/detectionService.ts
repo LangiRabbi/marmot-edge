@@ -90,7 +90,7 @@ export function transformDetectionCoordinates(
         x: centerX,
         y: centerY,
       },
-      zone_status: 'None', // Will be calculated by zone analysis
+      zone_status: 'none', // Will be calculated by zone analysis
       zone_ids: [...person.zones], // Copy zones from backend
     };
   });

@@ -137,7 +137,7 @@ class WebSocketService {
   // Debug mode - reduces console spam
   private debug = true; // TEMPORARY: Enable debug for WebSocket diagnosis
 
-  private log(...args: any[]): void {
+  private log(...args: unknown[]): void {
     if (this.debug) {
       console.log('[WebSocket]', ...args);
     }

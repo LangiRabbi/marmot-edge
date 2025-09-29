@@ -1,60 +1,8 @@
 import { apiClient } from './api';
+import type { Zone, CanvasZone, CreateZoneRequest, UpdateZoneRequest, ZoneStatus } from '@/types';
 
-export interface Zone {
-  id: number;
-  name: string;
-  workstation_id: number;
-  coordinates: {
-    points?: number[][];
-    x?: number;
-    y?: number;
-    width?: number;
-    height?: number;
-  };
-  is_active: boolean;
-  color: string;
-  person_count: number;
-  status: 'work' | 'idle' | 'other';
-  created_at: string;
-  updated_at?: string;
-}
-
-// Frontend-specific zone interface for canvas overlay
-export interface CanvasZone {
-  id: number;
-  name: string;
-  x: number; // percentage 0-100
-  y: number; // percentage 0-100
-  width: number; // percentage 0-100
-  height: number; // percentage 0-100
-  color: string;
-  status: 'Work' | 'Idle' | 'Other';
-}
-
-export interface CreateZoneRequest {
-  name: string;
-  workstation_id: number;
-  coordinates: {
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-  };
-  is_active?: boolean;
-  color: string;
-}
-
-export interface UpdateZoneRequest {
-  name?: string;
-  coordinates?: {
-    x?: number;
-    y?: number;
-    width?: number;
-    height?: number;
-  };
-  is_active?: boolean;
-  color?: string;
-}
+// Re-export types for backward compatibility
+export type { Zone, CanvasZone, CreateZoneRequest, UpdateZoneRequest };
 
 // Mock data for development when backend is not available
 const mockZones: Zone[] = [
@@ -210,7 +158,7 @@ class ZoneService {
       width: coords.width || 10,
       height: coords.height || 10,
       color: zone.color,
-      status: this.mapStatusToCanvas(zone.status)
+      status: zone.status // Now consistent lowercase
     };
   }
 
@@ -242,23 +190,7 @@ class ZoneService {
     };
   }
 
-  private mapStatusToCanvas(status: 'work' | 'idle' | 'other'): 'Work' | 'Idle' | 'Other' {
-    switch (status) {
-      case 'work': return 'Work';
-      case 'idle': return 'Idle';
-      case 'other': return 'Other';
-      default: return 'Idle';
-    }
-  }
-
-  private mapStatusFromCanvas(status: 'Work' | 'Idle' | 'Other'): 'work' | 'idle' | 'other' {
-    switch (status) {
-      case 'Work': return 'work';
-      case 'Idle': return 'idle';
-      case 'Other': return 'other';
-      default: return 'idle';
-    }
-  }
+  // Status mapping methods removed - now using consistent lowercase only
 }
 
 export const zoneService = new ZoneService();

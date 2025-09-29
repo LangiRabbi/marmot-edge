@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
-import { Loader2, Search, Monitor, Camera, Video, Upload } from "lucide-react";
+import { Loader2, Search, Monitor, Camera, Video, Upload, Wifi } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -217,8 +217,8 @@ export function AddWorkstationModal({ open, onOpenChange, onAddWorkstation }: Ad
       }
 
       const videoConfig: VideoSourceConfig = {
-        type: videoSource,
-        url: videoSource === 'rtsp' ? rtspUrl : undefined,
+        type: videoSource === 'ip' ? 'ip' : videoSource,
+        url: (videoSource === 'rtsp' || videoSource === 'ip') ? rtspUrl : undefined,
         usbDeviceId: videoSource === 'usb' ? selectedUsbDevice : undefined,
         fileName: videoSource === 'file' ? uploadedFile?.name : undefined,
         filePath: filePath
@@ -378,6 +378,13 @@ export function AddWorkstationModal({ open, onOpenChange, onAddWorkstation }: Ad
                   <span>Upload Video File</span>
                 </Label>
               </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="ip" id="ip" />
+                <Label htmlFor="ip" className="flex items-center space-x-2 cursor-pointer">
+                  <Wifi className="h-4 w-4 text-primary" />
+                  <span>IP Camera (HTTP/HLS)</span>
+                </Label>
+              </div>
             </RadioGroup>
 
             {/* RTSP Configuration */}
@@ -486,6 +493,26 @@ export function AddWorkstationModal({ open, onOpenChange, onAddWorkstation }: Ad
             )}
 
             {/* File Upload Configuration */}
+            {/* IP Camera Configuration */}
+            {videoSource === 'ip' && (
+              <div className="space-y-3 p-4 bg-muted/30 rounded-lg border border-border">
+                <Label htmlFor="ipUrl" className="text-foreground font-medium">
+                  IP Camera URL (HTTP/HLS)
+                </Label>
+                <Input
+                  id="ipUrl"
+                  type="url"
+                  placeholder="https://example.com/stream.m3u8"
+                  value={rtspUrl}
+                  onChange={(e) => setRtspUrl(e.target.value)}
+                  className="bg-background border-border text-foreground"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Enter HLS (.m3u8) or HTTP stream URL
+                </p>
+              </div>
+            )}
+
             {videoSource === 'file' && (
               <div className="space-y-4 p-4 bg-muted/30 rounded-lg border border-border">
                 <Label className="text-foreground font-medium">

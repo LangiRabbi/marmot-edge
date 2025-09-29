@@ -90,7 +90,13 @@
       "Bash(claude mcp:*)",
       "Bash(docker run:*)",
       "Bash(flake8:*)",
-      "Bash(echo:*)"
+      "Bash(echo:*)",
+      "Bash(PYTHONPATH=. uvicorn app.main:app --reload --port 8001 --log-level debug)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:docs.ultralytics.com)",
+      "Bash(npx tsc:*)",
+      "Bash(npm run type-check:*)",
+      "Bash(npm run:*)"
     ],
     "deny": [],
     "ask": []

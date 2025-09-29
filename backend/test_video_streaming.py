@@ -19,10 +19,10 @@ def test_api_connection():
     try:
         response = requests.get(f"{BASE_URL}/status")
         print(f"[OK] API Status: {response.json()}")
-        return True
+        assert isinstance(response.json(), dict)
     except Exception as e:
         print(f"[ERROR] API Connection failed: {e}")
-        return False
+        assert False, f"API connection failed: {e}"
 
 
 def test_create_file_stream():
@@ -57,10 +57,10 @@ def test_create_file_stream():
     try:
         response = requests.post(f"{BASE_URL}/video-streams/", json=stream_config)
         print(f"[OK] Stream created: {response.json()}")
-        return True
+        assert response.status_code in (200, 201)
     except Exception as e:
         print(f"[ERROR] Stream creation failed: {e}")
-        return False
+        assert False, f"Stream creation failed: {e}"
 
 
 def test_create_usb_stream():
@@ -95,10 +95,38 @@ def test_create_usb_stream():
     try:
         response = requests.post(f"{BASE_URL}/video-streams/", json=stream_config)
         print(f"[OK] USB Stream created: {response.json()}")
-        return True
+        assert response.status_code in (200, 201)
     except Exception as e:
         print(f"[ERROR] USB Stream creation failed: {e}")
-        return False
+        assert False, f"USB stream creation failed: {e}"
+
+
+# Helper functions (return values for main() and other callers)
+def list_streams_helper():
+    response = requests.get(f"{BASE_URL}/video-streams/")
+    return response.json()
+
+
+def stream_status_helper(stream_id: str):
+    response = requests.get(f"{BASE_URL}/video-streams/{stream_id}/status")
+    return response.json()
+
+
+def processing_results_helper(stream_id: str, limit: int = 3):
+    response = requests.get(f"{BASE_URL}/video-streams/{stream_id}/results?limit={limit}")
+    return response.json()
+
+
+def zone_efficiency_helper(stream_id: str, zone_id: int, minutes: int = 5):
+    response = requests.get(
+        f"{BASE_URL}/video-streams/{stream_id}/zones/{zone_id}/efficiency?minutes={minutes}"
+    )
+    return response.json()
+
+
+def system_statistics_helper():
+    response = requests.get(f"{BASE_URL}/video-streams/system/statistics")
+    return response.json()
 
 
 def test_list_streams():
@@ -109,10 +137,13 @@ def test_list_streams():
         print(f"[OK] Active streams ({len(streams)}):")
         for stream in streams:
             print(f"   - {stream['stream_id']}: {stream['name']} ({stream['status']})")
-        return streams
+        assert isinstance(streams, list)
+        # Also verify helper correctness
+        assert list_streams_helper() == streams
+        return None
     except Exception as e:
         print(f"[ERROR] List streams failed: {e}")
-        return []
+        assert False, f"List streams failed: {e}"
 
 
 def test_stream_status(stream_id: str):
@@ -120,6 +151,7 @@ def test_stream_status(stream_id: str):
     try:
         response = requests.get(f"{BASE_URL}/video-streams/{stream_id}/status")
         status = response.json()
+
         print(f"[OK] Stream {stream_id} status:")
         print(f"   Status: {status.get('status', 'unknown')}")
         print(
@@ -127,10 +159,13 @@ def test_stream_status(stream_id: str):
         )
         print(f"   Frames: {status.get('frame_count', 0)}")
         print(f"   Queue: {status.get('queue_size', 0)}")
-        return status
+
+        assert isinstance(status, dict)
+        # verify helper matches
+        assert stream_status_helper(stream_id) == status
     except Exception as e:
         print(f"[ERROR] Stream status failed: {e}")
-        return {}
+        assert False, f"Stream status failed: {e}"
 
 
 def test_processing_results(stream_id: str, limit: int = 3):
@@ -155,10 +190,11 @@ def test_processing_results(stream_id: str, limit: int = 3):
                     f"     Zone {zone_id}: {zone_data['status']} ({zone_data['person_count']} persons)"
                 )
 
-        return results
+        assert isinstance(results, list)
+        assert processing_results_helper(stream_id, limit) == results
     except Exception as e:
         print(f"[ERROR] Processing results failed: {e}")
-        return []
+        assert False, f"Processing results failed: {e}"
 
 
 def test_zone_efficiency(stream_id: str, zone_id: int, minutes: int = 5):
@@ -173,10 +209,12 @@ def test_zone_efficiency(stream_id: str, zone_id: int, minutes: int = 5):
         print(f"   Work time: {efficiency['work_minutes']:.1f} min")
         print(f"   Idle time: {efficiency['idle_minutes']:.1f} min")
         print(f"   Other time: {efficiency['other_minutes']:.1f} min")
-        return efficiency
+
+        assert isinstance(efficiency, dict)
+        assert zone_efficiency_helper(stream_id, zone_id, minutes) == efficiency
     except Exception as e:
         print(f"[ERROR] Zone efficiency failed: {e}")
-        return {}
+        assert False, f"Zone efficiency failed: {e}"
 
 
 def test_system_statistics():
@@ -184,6 +222,7 @@ def test_system_statistics():
     try:
         response = requests.get(f"{BASE_URL}/video-streams/system/statistics")
         stats = response.json()
+
         print(f"[OK] System statistics:")
 
         video_stats = stats.get("video_manager", {})
@@ -197,10 +236,11 @@ def test_system_statistics():
             f"   Processing queue: {processing_stats.get('processing_queue_size', 0)}"
         )
 
-        return stats
+        assert isinstance(stats, dict)
+        assert system_statistics_helper() == stats
     except Exception as e:
         print(f"[ERROR] System statistics failed: {e}")
-        return {}
+        assert False, f"System statistics failed: {e}"
 
 
 def test_update_stream(stream_id: str):
@@ -233,10 +273,10 @@ def test_update_stream(stream_id: str):
             f"{BASE_URL}/video-streams/{stream_id}", json=update_data
         )
         print(f"[OK] Stream updated: {response.json()}")
-        return True
+        assert response.status_code == 200 or isinstance(response.json(), dict)
     except Exception as e:
         print(f"[ERROR] Stream update failed: {e}")
-        return False
+        assert False, f"Stream update failed: {e}"
 
 
 def test_delete_stream(stream_id: str):
@@ -244,10 +284,10 @@ def test_delete_stream(stream_id: str):
     try:
         response = requests.delete(f"{BASE_URL}/video-streams/{stream_id}")
         print(f"[OK] Stream deleted: {response.json()}")
-        return True
+        assert response.status_code in (200, 202, 204) or response.json().get("ok", False)
     except Exception as e:
         print(f"[ERROR] Stream deletion failed: {e}")
-        return False
+        assert False, f"Stream deletion failed: {e}"
 
 
 def main():
@@ -257,9 +297,7 @@ def main():
 
     # Test 1: API Connection
     print("\n1. Testing API Connection")
-    if not test_api_connection():
-        print("[ERROR] Cannot proceed without API connection")
-        return
+    test_api_connection()
 
     # Test 2: Create File Stream
     print("\n2. Creating File-based Stream")
@@ -271,7 +309,7 @@ def main():
 
     # Test 4: List Streams
     print("\n4. Listing All Streams")
-    streams = test_list_streams()
+    streams = list_streams_helper()
 
     if not streams:
         print("[ERROR] No streams available for testing")
@@ -286,19 +324,19 @@ def main():
 
     # Test 6: Stream Status
     print(f"\n6. Getting Stream Status")
-    test_stream_status(test_stream_id)
+    stream_status_helper(test_stream_id)
 
     # Test 7: Processing Results
     print(f"\n7. Getting Processing Results")
-    test_processing_results(test_stream_id)
+    processing_results_helper(test_stream_id)
 
     # Test 8: Zone Efficiency
     print(f"\n8. Testing Zone Efficiency")
-    test_zone_efficiency(test_stream_id, 1, 5)  # Zone 1, last 5 minutes
+    zone_efficiency_helper(test_stream_id, 1, 5)  # Zone 1, last 5 minutes
 
     # Test 9: System Statistics
     print(f"\n9. System Statistics")
-    test_system_statistics()
+    system_statistics_helper()
 
     # Test 10: Update Stream
     print(f"\n10. Updating Stream Configuration")
@@ -310,7 +348,7 @@ def main():
 
     # Test 12: Final Results
     print(f"\n12. Final Processing Results")
-    test_processing_results(test_stream_id, 5)
+    processing_results_helper(test_stream_id, 5)
 
     # Test 13: Cleanup
     print(f"\n13. Cleaning Up Streams")

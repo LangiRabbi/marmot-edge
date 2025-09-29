@@ -23,6 +23,9 @@ from app.core.rate_limiting import rate_limiter
 # Import services for graceful shutdown
 from app.services.video_service import get_video_manager
 from app.workers.video_processor import get_video_processor
+from app.workers.file_video_processor import start_file_processing
+from app.database import get_db
+from app.core.database_factory import get_db_service
 
 # Load environment variables
 load_dotenv()
@@ -42,8 +45,11 @@ async def shutdown_services():
     success = True
 
     try:
+        # Get current event loop for VideoProcessor
+        current_loop = asyncio.get_running_loop()
+
         # Shutdown video processing system
-        video_processor = get_video_processor()
+        video_processor = get_video_processor(event_loop=current_loop)
         video_manager = get_video_manager()
 
         print("Shutting down video processor...")
@@ -84,6 +90,31 @@ def signal_handler(signum, frame):
     sys.exit(exit_code)
 
 
+async def auto_start_video_processing():
+    """Auto-start video processing for workstations with video configuration"""
+    print("Auto-starting video processing for configured workstations...")
+
+    try:
+        from app.database import AsyncSessionLocal
+
+        db_service = get_db_service()
+        async with AsyncSessionLocal() as db:
+            workstations = await db_service.workstations.get_workstations(db, skip=0, limit=100)
+
+            started_count = 0
+            for ws in workstations:
+                if ws.video_config and ws.video_config.get("type") == "file":
+                    file_path = ws.video_config.get("filePath")
+                    if file_path:
+                        print(f"Auto-starting processing for workstation {ws.id}: {ws.name}")
+                        start_file_processing(workstation_id=str(ws.id), file_path=file_path)
+                        started_count += 1
+
+            print(f"Auto-started {started_count} video processing streams")
+    except Exception as e:
+        print(f"Error during auto-start: {e}")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
@@ -92,6 +123,14 @@ async def lifespan(app: FastAPI):
     # Start rate limiter
     await rate_limiter.start()
     print("Rate limiter started")
+
+    # Initialize video processor with current event loop
+    current_loop = asyncio.get_running_loop()
+    get_video_processor(event_loop=current_loop)
+    print("Video processor initialized with event loop")
+
+    # Auto-start video processing for workstations with video config
+    await auto_start_video_processing()
 
     # Register signal handlers
     signal.signal(signal.SIGINT, signal_handler)  # Ctrl+C
@@ -166,9 +205,10 @@ async def health_check():
 @app.get("/api/v1/status")
 async def api_status():
     try:
-        # Get video system status
+        # Get current event loop and video system status
+        current_loop = asyncio.get_running_loop()
         video_manager = get_video_manager()
-        video_processor = get_video_processor()
+        video_processor = get_video_processor(event_loop=current_loop)
 
         video_stats = video_manager.get_statistics()
         processing_stats = video_processor.get_statistics()

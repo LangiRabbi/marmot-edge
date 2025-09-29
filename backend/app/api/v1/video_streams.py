@@ -3,6 +3,7 @@ Video streams API endpoints for managing real-time video sources
 Supports RTSP, USB, IP cameras with zone configuration
 """
 
+import asyncio
 import logging
 from datetime import datetime
 from typing import Any, Dict, List, Optional
@@ -121,6 +122,16 @@ async def create_stream(stream_data: StreamCreate, background_tasks: BackgroundT
     """
     video_manager = get_video_manager()
 
+    # Debug: Log VideoManager instance details in API
+    try:
+        import time
+        with open("debug_video_manager.log", "a") as f:
+            f.write(f"{time.time():.2f}: API create_stream - VideoManager ID: {id(video_manager)}\n")
+            f.write(f"{time.time():.2f}: API create_stream - VideoManager streams: {list(video_manager.streams.keys())}\n")
+            f.flush()
+    except:
+        pass
+
     try:
         # Validate zone count
         if len(stream_data.zones) > 10:
@@ -132,7 +143,7 @@ async def create_stream(stream_data: StreamCreate, background_tasks: BackgroundT
                 status_code=400, detail=f"Stream {stream_data.stream_id} already exists"
             )
 
-        # Create stream config
+        # Create stream config - use source_url directly from frontend
         config = StreamConfig(
             stream_id=stream_data.stream_id,
             source_url=stream_data.source_url,
@@ -347,7 +358,8 @@ async def get_stream_status(stream_id: str):
 @router.get("/{stream_id}/results", response_model=List[ProcessingResultResponse])
 async def get_stream_results(stream_id: str, limit: int = 5):
     """Get latest processing results for stream"""
-    video_processor = get_video_processor()
+    current_loop = asyncio.get_running_loop()
+    video_processor = get_video_processor(event_loop=current_loop)
     video_manager = get_video_manager()
 
     if stream_id not in video_manager.streams:
@@ -382,7 +394,8 @@ async def get_stream_results(stream_id: str, limit: int = 5):
 )
 async def get_zone_efficiency(stream_id: str, zone_id: int, minutes: int = 60):
     """Get efficiency metrics for specific zone"""
-    video_processor = get_video_processor()
+    current_loop = asyncio.get_running_loop()
+    video_processor = get_video_processor(event_loop=current_loop)
     video_manager = get_video_manager()
 
     if stream_id not in video_manager.streams:
@@ -415,7 +428,8 @@ async def get_zone_efficiency(stream_id: str, zone_id: int, minutes: int = 60):
 async def get_system_statistics():
     """Get overall video processing system statistics"""
     video_manager = get_video_manager()
-    video_processor = get_video_processor()
+    current_loop = asyncio.get_running_loop()
+    video_processor = get_video_processor(event_loop=current_loop)
 
     try:
         video_stats = video_manager.get_statistics()
@@ -436,7 +450,8 @@ async def get_system_statistics():
 async def shutdown_system():
     """Gracefully shutdown video processing system"""
     try:
-        video_processor = get_video_processor()
+        current_loop = asyncio.get_running_loop()
+        video_processor = get_video_processor(event_loop=current_loop)
         video_manager = get_video_manager()
 
         # Shutdown in order

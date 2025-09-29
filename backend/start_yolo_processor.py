@@ -21,8 +21,9 @@ async def start_video_processing():
 
         print("Starting YOLOv11 video processor...")
 
-        # Get processor and video manager
-        processor = get_video_processor()
+        # Get processor and video manager with current event loop
+        current_loop = asyncio.get_running_loop()
+        processor = get_video_processor(event_loop=current_loop)
         video_manager = get_video_manager()
 
         # Look for video file

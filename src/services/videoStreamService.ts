@@ -20,6 +20,8 @@ export interface CreateVideoStreamRequest {
   workstation_id: number;
   source_type: 'rtsp' | 'usb' | 'ip' | 'file';
   source_url: string;
+  stream_id: string;
+  stream_type: string;
 }
 
 export interface UpdateVideoStreamRequest {
@@ -277,12 +279,22 @@ class VideoStreamService {
     workstationName: string,
     videoConfig: VideoSourceConfig
   ): CreateVideoStreamRequest {
+    console.log('🔧 [videoStreamService] Converting video config:', {
+      workstationId,
+      workstationName,
+      videoConfig
+    });
+
     let sourceType: 'rtsp' | 'usb' | 'ip' | 'file' = 'file';
     let sourceUrl = '';
 
     switch (videoConfig.type) {
       case 'rtsp':
         sourceType = 'rtsp';
+        sourceUrl = videoConfig.url || '';
+        break;
+      case 'ip':
+        sourceType = 'ip';
         sourceUrl = videoConfig.url || '';
         break;
       case 'usb':
@@ -298,12 +310,17 @@ class VideoStreamService {
         sourceUrl = '';
     }
 
-    return {
+    const result = {
       name: `${workstationName} Camera`,
       workstation_id: workstationId,
       source_type: sourceType,
-      source_url: sourceUrl
+      source_url: sourceUrl,
+      stream_id: `ws_${workstationId}_stream`,
+      stream_type: sourceType === 'ip' ? 'hls' : sourceType
     };
+
+    console.log('🔧 [videoStreamService] Final request data:', result);
+    return result;
   }
 }
 

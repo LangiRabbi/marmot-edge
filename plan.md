@@ -419,6 +419,7 @@ This eliminates unnecessary user friction and provides immediate access to video
 **Root Cause Analysis**: Frontend incorrectly attempted to control autonomous backend processing through non-existent `/start/{id}` and `/stop/{id}` endpoints.
 
 **Problem Details**:
+
 1. ❌ **404 Errors**: Frontend called `/video-streams/start/7` and `/video-streams/stop/7` (non-existent endpoints)
 2. ❌ **Architecture Violation**: Frontend trying to control when detection starts/stops
 3. ❌ **Console Spam**: Excessive WebSocket subscription messages causing rate limiting
@@ -426,6 +427,7 @@ This eliminates unnecessary user friction and provides immediate access to video
 5. ❌ **Duplicate Connections**: Multiple WebSocket subscriptions to same workstation
 
 **Solution Applied - Option B**:
+
 1. ✅ **Removed Incorrect API Calls**: Deleted `startStream()` and `stopStream()` methods from `videoStreamService.ts`
 2. ✅ **Autonomous Backend Architecture**: Backend runs 24/7 independently, frontend only visualizes
 3. ✅ **Console Spam Reduction**: Added debug flags and reduced logging in WebSocket services
@@ -433,6 +435,7 @@ This eliminates unnecessary user friction and provides immediate access to video
 5. ✅ **WebSocket Optimization**: Reduced duplicate subscription messages with better state management
 
 **Final Results**:
+
 - ✅ **People Count Updates**: Real-time "0" → "2" updates working
 - ✅ **Bounding Boxes**: Person detection visualization working
 - ✅ **WebSocket Messages**: `detection_update` messages received correctly
@@ -443,16 +446,20 @@ This eliminates unnecessary user friction and provides immediate access to video
 ## 🚨 **CRITICAL BUG DIAGNOSIS - 2025-09-22**
 
 ### **Problem Summary**
+
 Person detection bounding boxes are NOT showing in the frontend VideoPlayer despite:
+
 - ✅ Backend YOLOv11 detection working (13.8+ FPS)
 - ✅ WebSocket infrastructure complete and connected
 - ✅ Frontend receiving WebSocket messages successfully
 - ✅ Broadcast endpoint returning "4 subscribers reached"
 
 ### **Root Cause Identified**
+
 **Backend broadcast endpoint sends 'alert' messages instead of 'detection_update' messages**
 
 #### **Evidence from Browser Console:**
+
 ```javascript
 [WebSocket] Received message: {"type":"alert","timestamp":"2025-09-22T19:57:41.348690"...
 [WebSocket] Broadcasting message to listeners: alert
@@ -460,21 +467,25 @@ Person detection bounding boxes are NOT showing in the frontend VideoPlayer desp
 ```
 
 #### **Expected vs Actual:**
+
 - **Expected**: `{"type":"detection_update", "persons": [...], "person_count": 2}`
 - **Actual**: `{"type":"alert", "alert_type": "detection_update", "message": "..."}`
 
 ### **Technical Analysis**
 
 #### **Working Components:**
+
 1. ✅ **WebSocket Connection**: Frontend properly connects to `ws://localhost:8001/api/v1/ws/7`
 2. ✅ **Message Transmission**: Backend successfully broadcasts to "4 subscribers"
 3. ✅ **Frontend Message Handling**: `useWebSocket.handleMessage()` processes messages correctly
 4. ✅ **Message Type Processing**: Frontend correctly handles 'alert' messages in `case 'alert':`
 
 #### **Broken Component:**
+
 5. ❌ **Backend Message Creation**: `backend/app/api/v1/websocket.py` broadcast endpoint creates `AlertMessage` instead of `DetectionUpdateMessage`
 
 #### **Frontend Impact:**
+
 ```typescript
 // This works (receives 'alert' messages):
 case 'alert':
@@ -490,35 +501,43 @@ case 'detection_update':
 ```
 
 #### **Result:**
+
 - `latestDetection` state remains `null`
 - PersonDetectionOverlay component never renders bounding boxes
 - People count stays at "0" despite actual detections
 
 ### **Fix Required for Tomorrow**
+
 1. **Primary Fix**: Repair `backend/app/api/v1/websocket.py` broadcast endpoint logic
+   
    - Ensure `message_type="detection_update"` creates `DetectionUpdateMessage`
    - Verify `PersonDetection` objects are properly constructed
    - Confirm `SubscriptionType.DETECTIONS` is used for broadcast
 
 2. **Verification Steps**:
+   
    - Browser console should show: `"type":"detection_update"` messages
    - Frontend should update People count from "0" to "2"
    - Bounding boxes should render on VideoPlayer canvas
    - `🔥 [useWebSocket] Received message: {type: detection_update, ...}` in logs
 
 3. **Testing Protocol**:
+   
    - Open workstation 7 modal
    - Run `python send_detection_via_broadcast.py`
    - Verify browser console shows `detection_update` (not `alert`)
    - Confirm People count updates and bounding boxes appear
 
 ### **Additional Issues Discovered**
+
 - **Rate Limiting**: WebSocket disconnects after 100 messages/minute
 - **Connection Stability**: Frontend shows "Message rate limit exceeded" errors
 - **Debug Logging**: Backend reloading clears debug output
 
 ### **Priority**: 🔴 **CRITICAL** - Blocks YOLOv11 real-time detection visualization
+
 ### **Estimated Fix Time**: 1-2 hours
+
 ### **Complexity**: Medium (backend message creation logic)
 
 ## 🔧 **ONGOING DEBUG SESSION - 2025-09-23**
@@ -540,6 +559,7 @@ case 'detection_update':
 **Key Finding**: The `/start-processing` and `/stop-processing` endpoints are **NOT** registered in the OpenAPI schema, which means they're not being loaded by FastAPI.
 
 **Current Status**:
+
 - Router includes endpoints in code at lines 132-207
 - Server restarts successfully with no errors
 - OpenAPI schema missing both processing endpoints
@@ -605,7 +625,111 @@ case 'detection_update':
 
 ---
 
-## CHECKPOINT 5: Analytics & Efficiency Calculation
+## CHECKPOINT 5: CRITICAL - WebSocket + YOLOv11 Best Practices Implementation
+
+**Status**: 🔄 In Progress
+**Branch**: `feat/websocket-best-practices`
+**Commit Target**: `feat: implement industry best practices for WebSocket broadcasting from YOLOv11 analytics`
+**Priority**: 🔴 **CRITICAL** - Based on production architecture analysis from research
+
+### Background
+
+Analysis of "GitHub repositories for WebSocket broadcasting in YOLOv11 video analytics" revealed **critical architectural gaps** compared to industry best practices. Our implementation has fundamental technical debt blocking scalability and reliability.
+
+### 🚨 **PRIORITY 1: Critical Architecture Fixes (4-6h)**
+
+#### Task 5.1: Implement asyncio.run_coroutine_threadsafe() pattern
+
+**Status**: ⏳ Not Started
+**Critical Priority**: 🔴 BLOCKING
+
+**Problem**: VideoProcessor uses HTTP POST for WebSocket broadcasting (anti-pattern)
+
+```python
+# CURRENT (WRONG):
+response = requests.post("http://localhost:8001/api/v1/websocket/broadcast")
+
+# SHOULD BE:
+future = asyncio.run_coroutine_threadsafe(
+    websocket_manager.broadcast_to_workstation(data), event_loop
+)
+```
+
+**Tasks**:
+
+- [ ] Add event loop reference to VideoProcessor
+- [ ] Replace HTTP POST with proper async bridge
+- [ ] Thread-safe broadcasting without HTTP overhead
+- [ ] Performance testing (should be ~10x faster)
+
+#### Task 5.2: Database Persistence in VideoProcessor
+
+**Status**: ⏳ Not Started
+**Critical Priority**: 🔴 BLOCKING
+
+**Problem**: VideoProcessor NEVER saves detections to database
+
+```python
+# MISSING in _processing_worker():
+detection_record = Detection(
+    workstation_id=workstation_id,
+    frame_timestamp=result.timestamp,
+    person_count=result.person_count,
+    bounding_boxes={"boxes": [...]},
+    track_ids={"track_ids": [...]}
+)
+db.add(detection_record)
+db.commit()
+```
+
+**Tasks**:
+
+- [ ] Integrate database session in VideoProcessor
+- [ ] Persist every detection with timestamp, bounding boxes, track_ids
+- [ ] Thread-safe database connection management
+- [ ] Error handling and rollback for failed commits
+
+#### Task 5.3: Streaming Performance Optimization
+
+**Status**: ⏳ Not Started
+**Priority**: 🟡 HIGH
+
+**Problem**: Krupówki Live stream has 0.13 FPS instead of target 15 FPS
+
+**Tasks**:
+
+- [ ] Diagnose RTSP connection bottlenecks
+- [ ] Optimize OpenCV VideoCapture parameters
+- [ ] Frame rate control improvements
+- [ ] Connection timeout and retry logic
+
+### 🎯 **PRIORITY 2: Production Scalability (3-4h)**
+
+#### Task 5.4: Redis pub/sub Architecture (Optional)
+
+- [ ] Redis-based message broadcasting for horizontal scaling
+- [ ] Multi-instance WebSocket support
+- [ ] Connection state synchronization
+
+#### Task 5.5: Server-Sent Events (SSE) Fallback
+
+- [ ] SSE endpoint as WebSocket backup
+- [ ] Auto-fallback mechanism for firewall compatibility
+
+### Success Criteria
+
+- ✅ **Threading-to-WebSocket Bridge**: Proper asyncio integration
+- ✅ **Database Analytics**: Persistent detection data for analytics
+- ✅ **Real-time Performance**: 15+ FPS streaming from Krupówki Live
+- ✅ **Industry Standards**: Architecture aligned with production best practices
+
+**Date Started**: 2025-01-24
+**Date Completed**: _In progress_
+**Notes**: Critical fixes identified from industry best practices research
+
+---
+
+## CHECKPOINT 6: Analytics & Efficiency Calculation
 
 **Status**: ⏳ Not Started
 **Branch**: `feat/analytics-efficiency`
@@ -638,7 +762,128 @@ case 'detection_update':
 
 ---
 
-## CHECKPOINT 6: Alerts & Notifications
+## CHECKPOINT 6: Bounding Boxes Fix & Video Synchronization
+
+**Status**: 🔄 In Progress
+**Branch**: `feat/basic-api`
+**Commit Target**: `fix: bounding boxes video synchronization and coordinate transformation`
+
+### Problem Analysis
+
+#### Issue 1: **Video Loop Desynchronization**
+- **Location**: `backend/app/workers/file_video_processor.py` lines 98-103
+- **Current Behavior**: Backend loops video infinitely (resets to frame 0 after 30s)
+- **Frontend Behavior**: Video player stops after 30 seconds
+- **Result**: Detections continue streaming after frontend video ends
+- **Fix Required**: Add `loop` attribute to frontend video player
+
+#### Issue 2: **Incorrect Bounding Box Color** ✅ FIXED
+- **Location**: `src/components/PersonDetectionOverlay.tsx` line 56
+- **Previous Value**: `border: '2px solid white'`
+- **Fixed Value**: `border: '2px solid lime'` ✅
+- **Status**: Already changed by user
+
+#### Issue 3: **Coordinate Transformation Mismatch**
+- **Backend Processing**: 720x1280 portrait video (`wideo_pionowe.mp4`)
+- **Frontend Display**: Unknown dimensions (possibly BigBuckBunny dimensions)
+- **Affected Files**:
+  - `src/hooks/useDetectionData.ts` lines 102-106 (coordinate transformation)
+  - `src/services/detectionService.ts` (transformDetectionCoordinates function)
+- **Problem**: Bounding boxes overflow video container because coordinate scaling uses wrong dimensions
+- **Fix Required**: Ensure `videoWidth` and `videoHeight` match backend processed video dimensions
+
+#### Issue 4: **Video Source Mismatch**
+- **Backend Processing**: `C:/Users/uzytkownik/Downloads/wideo_pionowe.mp4`
+- **Frontend Displaying**: BigBuckBunny.mp4 (Google fallback)
+- **Affected Files**:
+  - `src/components/WorkstationDetailsModal.tsx` lines 219-244 (getVideoSource function)
+  - Backend: `backend/app/workers/file_video_processor.py` lines 48-63
+- **Root Cause**: `workstation.videoConfig` is missing or has invalid `filePath`
+- **Result**: Frontend falls back to Google video while backend processes different file
+
+### Tasks
+
+- [x] Change bounding box color to lime/green ✅ (User completed)
+- [ ] Add `loop` attribute to VideoPlayer component
+- [ ] Investigate coordinate transformation dimensions
+- [ ] Fix video source synchronization between frontend and backend
+- [ ] Test WebSocket reconnection and verify detection flow
+- [ ] Add debug logging for coordinate transformation
+- [ ] Verify video dimensions match between frontend and backend
+
+### Fix Plan - File-by-File Changes
+
+#### 1. **Enable Video Looping**
+**File**: `src/components/VideoPlayer.tsx`
+**Change**: Add `loop` attribute to `<video>` element
+**Line**: Around line 150-170 (video element declaration)
+**Code Change**:
+```tsx
+<video
+  ref={videoRef}
+  className="w-full h-full object-contain rounded-lg"
+  loop  // ADD THIS LINE
+  onLoadedMetadata={handleLoadedMetadata}
+  // ... other props
+>
+```
+
+#### 2. **Fix Coordinate Transformation**
+**File**: `src/hooks/useDetectionData.ts`
+**Lines**: 102-106
+**Investigation**: Verify `videoWidth` and `videoHeight` values match backend dimensions (720x1280)
+**Add**: Debug logging to confirm dimensions
+
+**File**: `src/services/detectionService.ts`
+**Function**: `transformDetectionCoordinates`
+**Change**: Ensure transformation uses actual video element dimensions
+
+#### 3. **Fix Video Source Synchronization**
+**File**: `src/components/WorkstationDetailsModal.tsx`
+**Lines**: 219-244
+**Investigation**: Check why `videoConfig.filePath` is empty/invalid
+**Solutions**:
+- Option A: Stream backend video through API endpoint
+- Option B: Store video in accessible location and serve via static file server
+- Option C: Use backend video path directly (requires CORS/file access configuration)
+
+### Success Criteria
+
+- ✅ Green bounding boxes visible around detected persons
+- ✅ Video loops infinitely matching backend processing
+- ✅ Bounding boxes correctly positioned within video bounds
+- ✅ Frontend displays same video that backend is processing
+- ✅ Detections synchronize with video playback timeline
+- ✅ WebSocket connection shows active connections > 0 in backend logs
+
+### Execution Order
+
+1. **Quick Wins** (5 minutes):
+   - ✅ Bounding box color changed to lime ✅
+   - Add `loop` attribute to VideoPlayer
+
+2. **Coordinate Investigation** (15 minutes):
+   - Add debug logging to `useDetectionData.ts`
+   - Verify video dimensions in browser DevTools
+   - Test coordinate transformation with correct dimensions
+
+3. **Video Source Fix** (30 minutes):
+   - Investigate `workstation.videoConfig` structure
+   - Implement proper video source resolution
+   - Test with backend video file
+
+4. **WebSocket Reconnection** (5 minutes):
+   - Refresh frontend page
+   - Open workstation modal
+   - Verify connection in backend logs
+
+**Date Started**: 2025-09-27
+**Date Completed**: _Update when completed_
+**Notes**: Bounding box color already fixed by user. Main focus on video loop synchronization and coordinate transformation.
+
+---
+
+## CHECKPOINT 7: Alerts & Notifications
 
 **Status**: ⏳ Not Started
 **Branch**: `feat/alerts-notifications`
@@ -670,7 +915,7 @@ case 'detection_update':
 
 ---
 
-## CHECKPOINT 7: Reports & Data Export
+## CHECKPOINT 8: Reports & Data Export
 
 **Status**: ⏳ Not Started
 **Branch**: `feat/reports-export`

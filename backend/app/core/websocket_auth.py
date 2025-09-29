@@ -229,8 +229,12 @@ def _get_client_ip(websocket: WebSocket) -> str:
         return real_ip
 
     # Fallback to direct client IP
-    if websocket.client:
-        return websocket.client.host
+    try:
+        if websocket.client:
+            return websocket.client.host
+    except AttributeError:
+        # WebSocket client not available yet (before accept)
+        pass
 
     return "unknown"
 

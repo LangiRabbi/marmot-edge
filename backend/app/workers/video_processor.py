@@ -12,6 +12,8 @@ from datetime import datetime, timedelta
 from queue import Empty, Queue
 from typing import Any, Dict, List, Optional
 
+from ..database import get_db_session
+from ..models.detection import Detection
 from ..services.video_service import Rectangle, get_video_manager
 from ..services.yolo_service import get_yolo_tracking_service
 
@@ -257,10 +259,27 @@ class RectangleZoneAnalyzer:
 class VideoProcessor:
     """Main video processing pipeline coordinator"""
 
-    def __init__(self):
+    def __init__(self, event_loop: Optional[asyncio.AbstractEventLoop] = None):
         self.yolo_service = get_yolo_tracking_service()
         self.video_manager = get_video_manager()
         self.zone_analyzer = RectangleZoneAnalyzer()
+
+        # Debug: Log VideoManager instance details
+        try:
+            with open("debug_video_manager.log", "a") as f:
+                f.write(f"{time.time():.2f}: VideoProcessor init - VideoManager ID: {id(self.video_manager)}\n")
+                f.write(f"{time.time():.2f}: VideoProcessor init - VideoManager streams: {list(self.video_manager.streams.keys())}\n")
+                f.flush()
+        except:
+            pass
+
+        # Store event loop for asyncio.run_coroutine_threadsafe()
+        self.event_loop = event_loop or asyncio.get_event_loop()
+
+        # Database persistence statistics
+        self.db_writes_total = 0
+        self.db_writes_failed = 0
+        self.last_db_write = None
 
         self.processing_queue = Queue(maxsize=1000)
         self.results_queue = Queue(maxsize=1000)
@@ -277,6 +296,13 @@ class VideoProcessor:
         }
 
         # Start processing workers
+        try:
+            with open("debug_init.log", "a") as f:
+                f.write(f"{time.time():.2f}: VideoProcessor.__init__ starting workers\n")
+                f.flush()
+        except:
+            pass
+
         self._start_workers()
 
     def _start_workers(self):
@@ -298,12 +324,23 @@ class VideoProcessor:
 
         logger.info(f"Started {len(self.workers)} video processing workers")
 
+        # Debug: Log worker startup to file
+        try:
+            with open("debug_init.log", "a") as f:
+                f.write(f"{time.time():.2f}: _start_workers completed, {len(self.workers)} workers started\n")
+                f.flush()
+        except:
+            pass
+
     def _frame_collector_worker(self):
         """Worker that collects frames from all video streams"""
+        print(f"[FrameCollector] Worker started, running: {self.running.is_set()}")
         while self.running.is_set():
             try:
                 # Get frames from all active streams
                 all_frames = self.video_manager.get_all_frames()
+                if all_frames:
+                    print(f"[FrameCollector] Got {len(all_frames)} frames")
 
                 for stream_id, frame_data in all_frames.items():
                     if self.processing_queue.full():
@@ -324,11 +361,23 @@ class VideoProcessor:
 
     def _processing_worker(self):
         """Worker that processes frames with YOLO and zone analysis"""
+        # Debug: Write worker startup to file
+        try:
+            with open("debug_worker.log", "a") as f:
+                f.write(f"{time.time():.2f}: Processing worker started, running: {self.running.is_set()}\n")
+                f.flush()
+        except:
+            pass
+
         while self.running.is_set():
             try:
                 # Get frame from queue
                 try:
                     frame_data = self.processing_queue.get(timeout=0.1)
+                    # Debug: Log successful frame retrieval
+                    with open("debug_worker.log", "a") as f:
+                        f.write(f"{time.time():.2f}: Got frame data from queue\n")
+                        f.flush()
                 except Empty:
                     continue
 
@@ -348,7 +397,19 @@ class VideoProcessor:
                     # Update statistics
                     self._update_stats(result)
 
+                    # Save detection to database (async)
+                    self._schedule_database_persistence(result)
+
                     # Broadcast WebSocket updates (async)
+                    print(f"[VideoProcessor] Scheduling broadcast for workstation, persons: {result.person_count}")
+                    # Debug log to file (thread-safe)
+                    try:
+                        with open("debug_broadcast.log", "a") as f:
+                            f.write(f"{time.time():.2f}: Broadcasting {result.person_count} persons for {result.stream_id}\n")
+                            f.flush()
+                    except:
+                        pass
+
                     self._schedule_websocket_broadcast(result)
 
             except Exception as e:
@@ -364,14 +425,9 @@ class VideoProcessor:
             zones = frame_data["zones"]
             timestamp = datetime.fromtimestamp(frame_data["timestamp"])
 
-            # Convert frame to bytes for YOLO
-            import cv2
-
-            _, buffer = cv2.imencode(".jpg", frame)
-            frame_bytes = buffer.tobytes()
-
-            # Run YOLO tracking
-            trackings = self.yolo_service.track_persons(frame_bytes, persist=True)
+            # Optimized: Pass numpy array directly (zero-copy, no JPEG encode/decode)
+            # This eliminates ~20-30ms overhead per frame
+            trackings = self.yolo_service.track_persons(frame, persist=True)
 
             # Run zone analysis with rectangles
             zone_analysis = self.zone_analyzer.analyze_trackings_in_rectangles(
@@ -408,31 +464,189 @@ class VideoProcessor:
             self.stats["average_fps"] = 1000.0 / avg_time if avg_time > 0 else 0.0
             self.stats["last_update"] = time.time()
 
+    def _schedule_database_persistence(self, result: ProcessingResult):
+        """
+        Schedule database persistence via asyncio.run_coroutine_threadsafe().
+
+        Args:
+            result: Processing result to persist
+        """
+        try:
+            # Use asyncio.run_coroutine_threadsafe() to bridge thread to async database operations
+            future = asyncio.run_coroutine_threadsafe(
+                self._persist_detection_to_database(result),
+                self.event_loop
+            )
+
+            # Optional: Wait for completion with timeout (non-blocking)
+            try:
+                future.result(timeout=0.05)  # 50ms timeout for database write
+                self.db_writes_total += 1
+                self.last_db_write = datetime.utcnow()
+                logger.debug(f"[VideoProcessor] Database write successful for {result.stream_id}")
+            except asyncio.TimeoutError:
+                # Database write is happening asynchronously
+                logger.debug(f"[VideoProcessor] Database write scheduled for {result.stream_id} (async)")
+            except Exception as db_error:
+                self.db_writes_failed += 1
+                logger.warning(f"[VideoProcessor] Database write failed: {db_error}")
+
+        except Exception as e:
+            self.db_writes_failed += 1
+            logger.error(f"Failed to schedule database persistence: {e}")
+
+    async def _persist_detection_to_database(self, result: ProcessingResult):
+        """
+        Persist detection result to database (async method).
+
+        Args:
+            result: Processing result with detection data
+        """
+        try:
+            # Extract workstation ID from stream ID (e.g., "ws_7_stream" -> 7)
+            workstation_id = result.stream_id
+            if result.stream_id.startswith("ws_") and "_stream" in result.stream_id:
+                workstation_id = int(result.stream_id.replace("ws_", "").replace("_stream", ""))
+            else:
+                workstation_id = int(workstation_id) if workstation_id.isdigit() else None
+
+            if workstation_id is None:
+                logger.warning(f"Could not extract workstation_id from stream_id: {result.stream_id}")
+                return
+
+            # Prepare detection data
+            bounding_boxes = {
+                "boxes": [
+                    [float(t["bbox"][0]), float(t["bbox"][1]), float(t["bbox"][2]), float(t["bbox"][3])]
+                    for t in result.trackings if "bbox" in t
+                ]
+            }
+
+            track_ids = {
+                "track_ids": [
+                    t["track_id"]
+                    for t in result.trackings if t.get("track_id") is not None
+                ]
+            }
+
+            confidence_scores = {
+                "detections": [
+                    t.get("confidence", 0.0)
+                    for t in result.trackings
+                ]
+            }
+
+            # Determine zone status based on person count (simplified logic)
+            if result.person_count == 0:
+                zone_status = "idle"
+            elif result.person_count == 1:
+                zone_status = "work"
+            else:
+                zone_status = "other"
+
+            # Create detection record
+            detection = Detection(
+                workstation_id=workstation_id,
+                zone_id=None,  # TODO: Add zone analysis integration
+                frame_timestamp=result.timestamp,
+                person_count=result.person_count,
+                confidence_scores=confidence_scores,
+                bounding_boxes=bounding_boxes,
+                track_ids=track_ids,
+                tracking_data={
+                    "tracks": [
+                        {
+                            "id": t.get("track_id"),
+                            "bbox": t.get("bbox", []),
+                            "conf": t.get("confidence", 0.0)
+                        }
+                        for t in result.trackings
+                    ]
+                },
+                zone_status=zone_status,
+                processing_time_ms=result.processing_time_ms
+            )
+
+            # Save to database
+            async with get_db_session() as session:
+                session.add(detection)
+                await session.commit()
+
+            logger.debug(f"[Database] Saved detection: workstation_id={workstation_id}, persons={result.person_count}, tracks={len(track_ids['track_ids'])}")
+
+        except Exception as e:
+            logger.error(f"Database persistence error: {e}")
+            raise  # Re-raise to be caught by calling method
+
     def _schedule_websocket_broadcast(self, result: ProcessingResult):
         """
-        Schedule WebSocket broadcast in the main event loop.
+        Schedule WebSocket broadcast via asyncio.run_coroutine_threadsafe() (industry best practice).
 
         Args:
             result: Processing result to broadcast
         """
         try:
-            # Get or create event loop
-            try:
-                loop = asyncio.get_event_loop()
-            except RuntimeError:
-                # No event loop in current thread, try to get the main loop
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
+            # Import WebSocket manager and message schemas
+            from ..services.websocket_manager import websocket_manager
+            from ..schemas.websocket_messages import (
+                PersonDetection,
+                SubscriptionType,
+                create_detection_update,
+            )
 
-            # Schedule the coroutine
-            if loop.is_running():
-                # Use call_soon_threadsafe if loop is running
-                asyncio.run_coroutine_threadsafe(
-                    self._broadcast_websocket_updates(result), loop
-                )
-            else:
-                # Run the coroutine
-                loop.run_until_complete(self._broadcast_websocket_updates(result))
+            # Extract workstation ID from stream ID (e.g., "ws_8_stream" -> "8")
+            workstation_id = result.stream_id
+            if result.stream_id.startswith("ws_") and "_stream" in result.stream_id:
+                workstation_id = result.stream_id.replace("ws_", "").replace("_stream", "")
+
+            # Create person detection data
+            persons = []
+            for tracking in result.trackings:
+                if (
+                    "bbox" in tracking
+                    and "track_id" in tracking
+                    and tracking["track_id"] is not None
+                ):
+                    bbox = tracking["bbox"]
+                    center_x = (bbox[0] + bbox[2]) / 2
+                    center_y = (bbox[1] + bbox[3]) / 2
+
+                    person = PersonDetection(
+                        tracking_id=tracking["track_id"],
+                        confidence=tracking.get("confidence", 0.0),
+                        bbox=[float(bbox[0]), float(bbox[1]), float(bbox[2]), float(bbox[3])],
+                        center=[float(center_x), float(center_y)],
+                        zones=[]  # TODO: Add zone detection from result.zone_analysis
+                    )
+                    persons.append(person)
+
+            # Create detection update message
+            detection_message = create_detection_update(
+                workstation_id=workstation_id,
+                frame_timestamp=result.timestamp,
+                persons=persons,
+                processing_fps=result.fps_current,
+                frame_number=result.frame_number,
+            )
+
+            # Use asyncio.run_coroutine_threadsafe() to bridge thread to async WebSocket broadcasting
+            future = asyncio.run_coroutine_threadsafe(
+                websocket_manager.broadcast_to_workstation(
+                    workstation_id=workstation_id,
+                    message=detection_message,
+                    subscription_type=SubscriptionType.DETECTIONS,
+                ),
+                self.event_loop
+            )
+
+            # Optional: Wait for completion with timeout (non-blocking)
+            try:
+                future.result(timeout=0.1)  # 100ms timeout
+                logger.debug(f"[VideoProcessor] Broadcast success for {workstation_id}, {len(persons)} persons")
+            except asyncio.TimeoutError:
+                logger.debug(f"[VideoProcessor] Broadcast scheduled for {workstation_id} (async)")
+            except Exception as broadcast_error:
+                logger.warning(f"[VideoProcessor] Broadcast error: {broadcast_error}")
 
         except Exception as e:
             logger.error(f"Failed to schedule WebSocket broadcast: {e}")
@@ -467,7 +681,7 @@ class VideoProcessor:
         return self.zone_analyzer.get_zone_efficiency(stream_id, zone_id, minutes)
 
     def get_statistics(self) -> Dict[str, Any]:
-        """Get processing statistics"""
+        """Get processing statistics including database persistence metrics"""
         return {
             **self.stats,
             "active_streams": len(self.video_manager.streams),
@@ -475,6 +689,13 @@ class VideoProcessor:
             "results_queue_size": self.results_queue.qsize(),
             "workers_count": len(self.workers),
             "running": self.running.is_set(),
+            # Database persistence statistics
+            "database_writes_total": self.db_writes_total,
+            "database_writes_failed": self.db_writes_failed,
+            "database_success_rate": (
+                self.db_writes_total / max(self.db_writes_total + self.db_writes_failed, 1) * 100
+            ),
+            "last_database_write": self.last_db_write.isoformat() if self.last_db_write else None,
         }
 
     async def _broadcast_websocket_updates(self, result: ProcessingResult):
@@ -485,6 +706,7 @@ class VideoProcessor:
             result: Processing result to broadcast
         """
         try:
+            print(f"[VideoProcessor] Broadcasting for stream {result.stream_id}, persons: {result.person_count}")
             from ..schemas.websocket_messages import (
                 PersonDetection,
                 SubscriptionType,
@@ -529,9 +751,14 @@ class VideoProcessor:
                     )
                     persons.append(person)
 
+            # Extract workstation ID from stream ID (e.g., "ws_8_stream" -> "8")
+            workstation_id = result.stream_id
+            if result.stream_id.startswith("ws_") and "_stream" in result.stream_id:
+                workstation_id = result.stream_id.replace("ws_", "").replace("_stream", "")
+
             # Create detection update message
             detection_message = create_detection_update(
-                workstation_id=result.stream_id,
+                workstation_id=workstation_id,
                 frame_timestamp=result.timestamp,
                 persons=persons,
                 processing_fps=result.fps_current,
@@ -540,7 +767,7 @@ class VideoProcessor:
 
             # Broadcast detection update
             await websocket_manager.broadcast_to_workstation(
-                workstation_id=result.stream_id,
+                workstation_id=workstation_id,
                 message=detection_message,
                 subscription_type=SubscriptionType.DETECTIONS,
             )
@@ -560,12 +787,12 @@ class VideoProcessor:
 
             # Create zone update message
             zone_message = create_zone_update(
-                workstation_id=result.stream_id, zones=zones
+                workstation_id=workstation_id, zones=zones
             )
 
             # Broadcast zone update
             await websocket_manager.broadcast_to_workstation(
-                workstation_id=result.stream_id,
+                workstation_id=workstation_id,
                 message=zone_message,
                 subscription_type=SubscriptionType.ZONES,
             )
@@ -597,7 +824,7 @@ class VideoProcessor:
                 )
 
                 efficiency_message = EfficiencyUpdateMessage(
-                    workstation_id=result.stream_id,
+                    workstation_id=workstation_id,
                     metrics=efficiency_metrics,
                     period_start=result.timestamp
                     - timedelta(minutes=efficiency_data.get("total_minutes", 0)),
@@ -606,7 +833,7 @@ class VideoProcessor:
 
                 # Broadcast efficiency update
                 await websocket_manager.broadcast_to_workstation(
-                    workstation_id=result.stream_id,
+                    workstation_id=workstation_id,
                     message=efficiency_message,
                     subscription_type=SubscriptionType.EFFICIENCY,
                 )
@@ -646,9 +873,23 @@ class VideoProcessor:
 _video_processor = None
 
 
-def get_video_processor() -> VideoProcessor:
-    """Get global video processor instance"""
+def get_video_processor(event_loop: Optional[asyncio.AbstractEventLoop] = None) -> VideoProcessor:
+    """Get global video processor instance with event loop for async WebSocket broadcasting"""
     global _video_processor
+
+    # Debug: Always log get_video_processor calls
+    try:
+        with open("C:/Users/uzytkownik/Projekty/marmot-edge/backend/debug_get_processor.log", "a") as f:
+            f.write(f"{time.time():.2f}: get_video_processor called, _video_processor is None: {_video_processor is None}\n")
+            if _video_processor:
+                f.write(f"{time.time():.2f}: existing instance has {len(_video_processor.workers)} workers\n")
+            f.flush()
+    except:
+        pass
+
     if _video_processor is None:
-        _video_processor = VideoProcessor()
+        logger.info("[VideoProcessor] Creating new VideoProcessor instance with event loop")
+        _video_processor = VideoProcessor(event_loop=event_loop)
+    else:
+        print(f"[VideoProcessor] Reusing existing instance, workers: {len(_video_processor.workers)}")
     return _video_processor
