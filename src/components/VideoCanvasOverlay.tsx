@@ -245,17 +245,32 @@ export function VideoCanvasOverlay({
       detections.forEach((detection) => {
         const { bbox, confidence, track_id } = detection;
 
-        // Calculate scaling factors for coordinate transformation
-        // YOLO returns coords in original captured frame dimensions
-        // We need to scale them to canvas display dimensions
-        const scaleX = frameDimensions ? (width / frameDimensions.width) : 1;
-        const scaleY = frameDimensions ? (height / frameDimensions.height) : 1;
+        // Handle coordinate system mismatch between video frame and canvas.
+        // This logic accounts for the `object-contain` CSS property on the video element,
+        // ensuring bounding boxes are scaled and positioned correctly over the letterboxed video.
+        let scale = 1;
+        let offsetX = 0;
+        let offsetY = 0;
 
-        // Transform YOLO coordinates from frame space to canvas space
-        const x = bbox.x1 * scaleX;
-        const y = bbox.y1 * scaleY;
-        const boxWidth = (bbox.x2 - bbox.x1) * scaleX;
-        const boxHeight = (bbox.y2 - bbox.y1) * scaleY;
+        if (frameDimensions) {
+          // Calculate the uniform scale factor, constrained by either width or height,
+          // to correctly handle `object-contain`.
+          scale = Math.min(width / frameDimensions.width, height / frameDimensions.height);
+
+          // Calculate the rendered video dimensions after scaling.
+          const renderWidth = frameDimensions.width * scale;
+          const renderHeight = frameDimensions.height * scale;
+
+          // Calculate the horizontal and vertical offsets to center the video within the canvas.
+          offsetX = (width - renderWidth) / 2;
+          offsetY = (height - renderHeight) / 2;
+        }
+
+        // Transform YOLO coordinates from frame space to canvas space.
+        const x = (bbox.x1 * scale) + offsetX;
+        const y = (bbox.y1 * scale) + offsetY;
+        const boxWidth = (bbox.x2 - bbox.x1) * scale;
+        const boxHeight = (bbox.y2 - bbox.y1) * scale;
 
         // Draw bounding box
         ctx.strokeStyle = '#00FF00'; // Green for person detection
